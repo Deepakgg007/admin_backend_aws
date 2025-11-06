@@ -1,0 +1,30 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: z1_backend_web
+    volumes:
+      - .:/app
+      - ./code:/code
+      - /var/run/docker.sock:/var/run/docker.sock   # allows Django to talk to Docker
+    ports:
+      - "1122:1122"
+    depends_on:
+      - code_executor
+    environment:
+      - DEBUG=1
+      - DJANGO_SETTINGS_MODULE=z1_backend.settings
+    restart: unless-stopped
+    command: python manage.py runserver 0.0.0.0:1122
+
+  code_executor:
+    build:
+      context: .
+      dockerfile: Dockerfile.code_executor
+    container_name: z1_code_executor
+    volumes:
+      - ./code:/code     # mount code folder so Django can copy files
+    tty: true
+    stdin_open: true
+    restart: unless-stopped

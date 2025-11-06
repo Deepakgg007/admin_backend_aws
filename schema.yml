@@ -1,0 +1,4485 @@
+openapi: 3.0.3
+info:
+  title: Z1 Solution API
+  version: 1.0.0
+  description: Advanced REST API for Z1 Solution Backend
+paths:
+  /api/:
+    get:
+      operationId: api_retrieve
+      description: Get information about available API endpoints
+      summary: API Root
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: API endpoint information
+  /api/auth/change-password/:
+    put:
+      operationId: api_auth_change_password_update
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangePassword'
+          description: ''
+    patch:
+      operationId: api_auth_change_password_partial_update
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedChangePassword'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedChangePassword'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedChangePassword'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangePassword'
+          description: ''
+  /api/auth/forgot-password/:
+    post:
+      operationId: api_auth_forgot_password_create
+      description: Send OTP to registered user email for password reset
+      summary: Request Password Reset OTP
+      tags:
+      - Authentication - User - Password Reset
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: OTP sent successfully
+        '400':
+          description: Invalid email or user not found
+  /api/auth/login/:
+    post:
+      operationId: api_auth_login_create
+      description: Login with email and password to get JWT tokens and user information
+        including staff/superuser status
+      summary: User Login
+      tags:
+      - Authentication - User
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Login'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Login'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+          description: ''
+        '400':
+          description: Invalid credentials
+  /api/auth/profile/:
+    get:
+      operationId: api_auth_profile_retrieve
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    put:
+      operationId: api_auth_profile_update
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/User'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/User'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+    patch:
+      operationId: api_auth_profile_partial_update
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/auth/refresh/:
+    post:
+      operationId: api_auth_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/auth/register/:
+    post:
+      operationId: api_auth_register_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistration'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserRegistration'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserRegistration'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRegistration'
+          description: ''
+  /api/auth/reset-password/:
+    post:
+      operationId: api_auth_reset_password_create
+      description: Reset user password using verified OTP
+      summary: Reset Password
+      tags:
+      - Authentication - User - Password Reset
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPassword'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ResetPassword'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ResetPassword'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: Password reset successfully
+        '400':
+          description: Invalid OTP or user not found
+  /api/auth/verify-otp/:
+    post:
+      operationId: api_auth_verify_otp_create
+      description: Verify the OTP code sent to user email
+      summary: Verify OTP
+      tags:
+      - Authentication - User - Password Reset
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyOTP'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VerifyOTP'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VerifyOTP'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: OTP verified successfully
+        '400':
+          description: Invalid or expired OTP
+  /api/college/forgot-password/:
+    post:
+      operationId: api_college_forgot_password_create
+      description: Send OTP to registered college email for password reset
+      summary: Request Password Reset OTP
+      tags:
+      - College - Password Reset
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: OTP sent successfully
+        '400':
+          description: Invalid email or college not found
+  /api/college/login/:
+    post:
+      operationId: api_college_login_create
+      description: Login for colleges using email and password. Returns JWT tokens
+        and college information.
+      summary: College Login
+      tags:
+      - College - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollegeLogin'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CollegeLogin'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CollegeLogin'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollegeLoginResponse'
+          description: ''
+        '400':
+          description: Invalid credentials
+  /api/college/reset-password/:
+    post:
+      operationId: api_college_reset_password_create
+      description: Reset college password using verified OTP
+      summary: Reset Password
+      tags:
+      - College - Password Reset
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: Password reset successfully
+        '400':
+          description: Invalid OTP or college not found
+  /api/college/students/{student_id}/approve/:
+    post:
+      operationId: api_college_students_approve_create
+      description: Approve or reject a student application using authenticated college
+        from JWT token
+      summary: Approve or reject student
+      parameters:
+      - in: path
+        name: student_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - College - Student Approval
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/college/students/pending/:
+    get:
+      operationId: api_college_students_pending_list
+      description: Returns list of students pending approval for the authenticated
+        college from JWT token
+      summary: Get pending students for college
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: per_page
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - College - Student Approval
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedStudentApprovalListList'
+          description: ''
+  /api/college/verify-otp/:
+    post:
+      operationId: api_college_verify_otp_create
+      description: Verify the OTP code sent to college email
+      summary: Verify OTP
+      tags:
+      - College - Password Reset
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          description: OTP verified successfully
+        '400':
+          description: Invalid or expired OTP
+  /api/colleges/:
+    get:
+      operationId: api_colleges_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: per_page
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCollegeListList'
+          description: ''
+    post:
+      operationId: api_colleges_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/College'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/College'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/College'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/College'
+          description: ''
+  /api/colleges/{id}/:
+    get:
+      operationId: api_colleges_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this college.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/College'
+          description: ''
+    put:
+      operationId: api_colleges_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this college.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/College'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/College'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/College'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/College'
+          description: ''
+    patch:
+      operationId: api_colleges_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this college.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCollege'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCollege'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCollege'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/College'
+          description: ''
+    delete:
+      operationId: api_colleges_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this college.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/colleges/{id}/deactivate/:
+    post:
+      operationId: api_colleges_deactivate_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this college.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/College'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/College'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/College'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/College'
+          description: ''
+  /api/colleges/{id}/increment_students/:
+    post:
+      operationId: api_colleges_increment_students_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this college.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/College'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/College'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/College'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/College'
+          description: ''
+  /api/colleges/with_seats/:
+    get:
+      operationId: api_colleges_with_seats_retrieve
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/College'
+          description: ''
+  /api/courses/:
+    get:
+      operationId: api_courses_list
+      description: ViewSet for managing courses
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: per_page
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCourseListList'
+          description: ''
+    post:
+      operationId: api_courses_create
+      description: ViewSet for managing courses
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourseCreateUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CourseCreateUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CourseCreateUpdate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseCreateUpdate'
+          description: ''
+  /api/courses/{slug}/:
+    get:
+      operationId: api_courses_retrieve
+      description: ViewSet for managing courses
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseDetail'
+          description: ''
+    put:
+      operationId: api_courses_update
+      description: ViewSet for managing courses
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourseCreateUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CourseCreateUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CourseCreateUpdate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseCreateUpdate'
+          description: ''
+    patch:
+      operationId: api_courses_partial_update
+      description: ViewSet for managing courses
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCourseCreateUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCourseCreateUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCourseCreateUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseCreateUpdate'
+          description: ''
+    delete:
+      operationId: api_courses_destroy
+      description: ViewSet for managing courses
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/courses/{slug}/enroll/:
+    post:
+      operationId: api_courses_enroll_create
+      description: Enroll current user in the course
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourseDetail'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CourseDetail'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CourseDetail'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseDetail'
+          description: ''
+  /api/courses/{slug}/syllabi/:
+    get:
+      operationId: api_courses_syllabi_retrieve
+      description: Get all syllabi for the course
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseDetail'
+          description: ''
+  /api/courses/{slug}/tasks/:
+    get:
+      operationId: api_courses_tasks_retrieve
+      description: Get all tasks for the course
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseDetail'
+          description: ''
+  /api/courses/featured/:
+    get:
+      operationId: api_courses_featured_retrieve
+      description: Get featured courses
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseDetail'
+          description: ''
+  /api/courses/my_courses/:
+    get:
+      operationId: api_courses_my_courses_retrieve
+      description: Get courses the current user is enrolled in
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseDetail'
+          description: ''
+  /api/enrollments/:
+    get:
+      operationId: api_enrollments_list
+      description: ViewSet for managing enrollments
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: per_page
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedEnrollmentList'
+          description: ''
+    post:
+      operationId: api_enrollments_create
+      description: ViewSet for managing enrollments
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Enrollment'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Enrollment'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Enrollment'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Enrollment'
+          description: ''
+  /api/enrollments/{id}/:
+    get:
+      operationId: api_enrollments_retrieve
+      description: ViewSet for managing enrollments
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this enrollment.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Enrollment'
+          description: ''
+    put:
+      operationId: api_enrollments_update
+      description: ViewSet for managing enrollments
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this enrollment.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Enrollment'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Enrollment'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Enrollment'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Enrollment'
+          description: ''
+    patch:
+      operationId: api_enrollments_partial_update
+      description: ViewSet for managing enrollments
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this enrollment.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEnrollment'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedEnrollment'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEnrollment'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Enrollment'
+          description: ''
+    delete:
+      operationId: api_enrollments_destroy
+      description: ViewSet for managing enrollments
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this enrollment.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/organizations/:
+    get:
+      operationId: api_organizations_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: per_page
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedOrganizationList'
+          description: ''
+    post:
+      operationId: api_organizations_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Organization'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Organization'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Organization'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
+  /api/organizations/{id}/:
+    get:
+      operationId: api_organizations_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this organization.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
+    put:
+      operationId: api_organizations_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this organization.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Organization'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Organization'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Organization'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
+    patch:
+      operationId: api_organizations_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this organization.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedOrganization'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedOrganization'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedOrganization'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
+    delete:
+      operationId: api_organizations_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this organization.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/organizations/{id}/colleges/:
+    get:
+      operationId: api_organizations_colleges_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this organization.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
+  /api/organizations/{id}/deactivate/:
+    post:
+      operationId: api_organizations_deactivate_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this organization.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Organization'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Organization'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Organization'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
+  /api/submissions/:
+    get:
+      operationId: api_submissions_list
+      description: ViewSet for managing task submissions
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: per_page
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTaskSubmissionList'
+          description: ''
+    post:
+      operationId: api_submissions_create
+      description: ViewSet for managing task submissions
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskSubmission'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskSubmission'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskSubmission'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskSubmission'
+          description: ''
+  /api/submissions/{id}/:
+    get:
+      operationId: api_submissions_retrieve
+      description: ViewSet for managing task submissions
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task submission.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskSubmission'
+          description: ''
+    put:
+      operationId: api_submissions_update
+      description: ViewSet for managing task submissions
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task submission.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskSubmission'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskSubmission'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskSubmission'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskSubmission'
+          description: ''
+    patch:
+      operationId: api_submissions_partial_update
+      description: ViewSet for managing task submissions
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task submission.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskSubmission'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskSubmission'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskSubmission'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskSubmission'
+          description: ''
+    delete:
+      operationId: api_submissions_destroy
+      description: ViewSet for managing task submissions
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task submission.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/submissions/{id}/grade/:
+    post:
+      operationId: api_submissions_grade_create
+      description: Grade a submission (staff only)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task submission.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskSubmission'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskSubmission'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskSubmission'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskSubmission'
+          description: ''
+  /api/submissions/{id}/submit/:
+    post:
+      operationId: api_submissions_submit_create
+      description: Submit the task (change status from draft to submitted)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task submission.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskSubmission'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskSubmission'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskSubmission'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskSubmission'
+          description: ''
+  /api/syllabi/:
+    get:
+      operationId: api_syllabi_list
+      description: ViewSet for managing syllabi
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: per_page
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSyllabusList'
+          description: ''
+    post:
+      operationId: api_syllabi_create
+      description: ViewSet for managing syllabi
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Syllabus'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Syllabus'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Syllabus'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Syllabus'
+          description: ''
+  /api/syllabi/{id}/:
+    get:
+      operationId: api_syllabi_retrieve
+      description: ViewSet for managing syllabi
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this syllabus.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Syllabus'
+          description: ''
+    put:
+      operationId: api_syllabi_update
+      description: ViewSet for managing syllabi
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this syllabus.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Syllabus'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Syllabus'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Syllabus'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Syllabus'
+          description: ''
+    patch:
+      operationId: api_syllabi_partial_update
+      description: ViewSet for managing syllabi
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this syllabus.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSyllabus'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedSyllabus'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSyllabus'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Syllabus'
+          description: ''
+    delete:
+      operationId: api_syllabi_destroy
+      description: ViewSet for managing syllabi
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this syllabus.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/tasks/:
+    get:
+      operationId: api_tasks_list
+      description: ViewSet for managing tasks
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: per_page
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTaskList'
+          description: ''
+    post:
+      operationId: api_tasks_create
+      description: ViewSet for managing tasks
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Task'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Task'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Task'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/{id}/:
+    get:
+      operationId: api_tasks_retrieve
+      description: ViewSet for managing tasks
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+    put:
+      operationId: api_tasks_update
+      description: ViewSet for managing tasks
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Task'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Task'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Task'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+    patch:
+      operationId: api_tasks_partial_update
+      description: ViewSet for managing tasks
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTask'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTask'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTask'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+    delete:
+      operationId: api_tasks_destroy
+      description: ViewSet for managing tasks
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/tasks/{id}/submissions/:
+    get:
+      operationId: api_tasks_submissions_retrieve
+      description: Get all submissions for a task
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/topics/:
+    get:
+      operationId: api_topics_list
+      description: ViewSet for managing topics
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: per_page
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTopicList'
+          description: ''
+    post:
+      operationId: api_topics_create
+      description: ViewSet for managing topics
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Topic'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Topic'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Topic'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Topic'
+          description: ''
+  /api/topics/{id}/:
+    get:
+      operationId: api_topics_retrieve
+      description: ViewSet for managing topics
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this topic.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Topic'
+          description: ''
+    put:
+      operationId: api_topics_update
+      description: ViewSet for managing topics
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this topic.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Topic'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Topic'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Topic'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Topic'
+          description: ''
+    patch:
+      operationId: api_topics_partial_update
+      description: ViewSet for managing topics
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this topic.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTopic'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTopic'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTopic'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Topic'
+          description: ''
+    delete:
+      operationId: api_topics_destroy
+      description: ViewSet for managing topics
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this topic.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/universities/:
+    get:
+      operationId: api_universities_list
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: per_page
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUniversityList'
+          description: ''
+    post:
+      operationId: api_universities_create
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/University'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/University'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/University'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/University'
+          description: ''
+  /api/universities/{id}/:
+    get:
+      operationId: api_universities_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this university.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/University'
+          description: ''
+    put:
+      operationId: api_universities_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this university.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/University'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/University'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/University'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/University'
+          description: ''
+    patch:
+      operationId: api_universities_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this university.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUniversity'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUniversity'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUniversity'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/University'
+          description: ''
+    delete:
+      operationId: api_universities_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this university.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/universities/{id}/colleges/:
+    get:
+      operationId: api_universities_colleges_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this university.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/University'
+          description: ''
+  /api/universities/{id}/deactivate/:
+    post:
+      operationId: api_universities_deactivate_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this university.
+        required: true
+      tags:
+      - api
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/University'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/University'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/University'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/University'
+          description: ''
+  /api/universities/{id}/organizations/:
+    get:
+      operationId: api_universities_organizations_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this university.
+        required: true
+      tags:
+      - api
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/University'
+          description: ''
+components:
+  schemas:
+    ApprovalStatusEnum:
+      enum:
+      - pending
+      - approved
+      - rejected
+      type: string
+      description: |-
+        * `pending` - Pending Approval
+        * `approved` - Approved
+        * `rejected` - Rejected
+    ChangePassword:
+      type: object
+      properties:
+        old_password:
+          type: string
+        new_password:
+          type: string
+      required:
+      - new_password
+      - old_password
+    College:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        college_id:
+          type: string
+          format: uuid
+          readOnly: true
+        organization:
+          type: integer
+        organization_name:
+          type: string
+          readOnly: true
+        university_name:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          writeOnly: true
+          description: College login password
+          minLength: 6
+        address:
+          type: string
+        phone_number:
+          type: string
+          maxLength: 20
+        max_students:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: Maximum number of students that can register
+        current_students:
+          type: integer
+          readOnly: true
+          description: Current number of registered students
+        available_seats:
+          type: integer
+          readOnly: true
+        is_registration_open:
+          type: boolean
+          readOnly: true
+        logo:
+          type: string
+          format: uri
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        created_by:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        is_active:
+          type: boolean
+      required:
+      - address
+      - available_seats
+      - college_id
+      - created_at
+      - created_by
+      - current_students
+      - email
+      - id
+      - is_registration_open
+      - name
+      - organization
+      - organization_name
+      - password
+      - phone_number
+      - university_name
+      - updated_at
+    CollegeList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        college_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        organization_name:
+          type: string
+          readOnly: true
+        university_name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        address:
+          type: string
+        phone_number:
+          type: string
+          maxLength: 20
+        max_students:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: Maximum number of students that can register
+        current_students:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: Current number of registered students
+        available_seats:
+          type: integer
+          readOnly: true
+        is_registration_open:
+          type: boolean
+          readOnly: true
+        logo:
+          type: string
+          format: uri
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        created_by:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        is_active:
+          type: boolean
+      required:
+      - address
+      - available_seats
+      - college_id
+      - created_at
+      - created_by
+      - email
+      - id
+      - is_registration_open
+      - name
+      - organization_name
+      - phone_number
+      - university_name
+      - updated_at
+    CollegeLogin:
+      type: object
+      description: Serializer for college login
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          writeOnly: true
+        remember_me:
+          type: boolean
+          default: false
+      required:
+      - email
+      - password
+    CollegeLoginResponse:
+      type: object
+      description: Response serializer for college login
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+          readOnly: true
+        college:
+          type: object
+          additionalProperties: {}
+          readOnly: true
+      required:
+      - access
+      - college
+      - refresh
+    ContentTypeEnum:
+      enum:
+      - video
+      - article
+      - quiz
+      - assignment
+      - reading
+      - live_session
+      type: string
+      description: |-
+        * `video` - Video
+        * `article` - Article
+        * `quiz` - Quiz
+        * `assignment` - Assignment
+        * `reading` - Reading Material
+        * `live_session` - Live Session
+    CourseCreateUpdate:
+      type: object
+      description: Serializer for creating/updating courses
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        short_description:
+          type: string
+          nullable: true
+          maxLength: 500
+        difficulty_level:
+          $ref: '#/components/schemas/DifficultyLevelEnum'
+        duration_hours:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: Estimated course duration in hours
+        status:
+          $ref: '#/components/schemas/Status399Enum'
+        thumbnail:
+          type: string
+          format: uri
+          nullable: true
+        video_intro_url:
+          type: string
+          format: uri
+          nullable: true
+          description: Introduction video URL
+          maxLength: 200
+        max_enrollments:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: 0 means unlimited
+        is_featured:
+          type: boolean
+        is_free:
+          type: boolean
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        college:
+          type: integer
+          nullable: true
+        organization:
+          type: integer
+          nullable: true
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - description
+      - title
+    CourseDetail:
+      type: object
+      description: Detailed serializer for course with all related data
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        course_id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          maxLength: 255
+        slug:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        description:
+          type: string
+        short_description:
+          type: string
+          nullable: true
+          maxLength: 500
+        difficulty_level:
+          $ref: '#/components/schemas/DifficultyLevelEnum'
+        duration_hours:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: Estimated course duration in hours
+        status:
+          $ref: '#/components/schemas/Status399Enum'
+        thumbnail:
+          type: string
+          format: uri
+          nullable: true
+        video_intro_url:
+          type: string
+          format: uri
+          nullable: true
+          description: Introduction video URL
+          maxLength: 200
+        max_enrollments:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: 0 means unlimited
+        current_enrollments:
+          type: integer
+          readOnly: true
+        available_seats:
+          type: string
+          readOnly: true
+        is_enrollment_open:
+          type: string
+          readOnly: true
+        is_featured:
+          type: boolean
+        is_free:
+          type: boolean
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        created_by:
+          type: string
+          readOnly: true
+        college:
+          type: string
+          readOnly: true
+        organization:
+          type: string
+          readOnly: true
+        syllabi:
+          type: array
+          items:
+            $ref: '#/components/schemas/Syllabus'
+          readOnly: true
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+          readOnly: true
+        total_topics:
+          type: string
+          readOnly: true
+        total_tasks:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - available_seats
+      - college
+      - course_id
+      - created_at
+      - created_by
+      - current_enrollments
+      - description
+      - id
+      - is_enrollment_open
+      - organization
+      - slug
+      - syllabi
+      - tasks
+      - title
+      - total_tasks
+      - total_topics
+      - updated_at
+    CourseList:
+      type: object
+      description: Lightweight serializer for listing courses
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        course_id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          maxLength: 255
+        slug:
+          type: string
+          maxLength: 255
+          pattern: ^[-a-zA-Z0-9_]+$
+        short_description:
+          type: string
+          nullable: true
+          maxLength: 500
+        difficulty_level:
+          $ref: '#/components/schemas/DifficultyLevelEnum'
+        duration_hours:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: Estimated course duration in hours
+        status:
+          $ref: '#/components/schemas/Status399Enum'
+        thumbnail:
+          type: string
+          format: uri
+          nullable: true
+        is_featured:
+          type: boolean
+        is_free:
+          type: boolean
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        current_enrollments:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        available_seats:
+          type: string
+          readOnly: true
+        is_enrollment_open:
+          type: string
+          readOnly: true
+        created_by_name:
+          type: string
+          readOnly: true
+        college_name:
+          type: string
+          readOnly: true
+        organization_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - available_seats
+      - college_name
+      - course_id
+      - created_at
+      - created_by_name
+      - id
+      - is_enrollment_open
+      - organization_name
+      - title
+    DifficultyLevelEnum:
+      enum:
+      - beginner
+      - intermediate
+      - advanced
+      type: string
+      description: |-
+        * `beginner` - Beginner
+        * `intermediate` - Intermediate
+        * `advanced` - Advanced
+    Enrollment:
+      type: object
+      description: Serializer for enrollments
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        enrollment_id:
+          type: string
+          format: uuid
+          readOnly: true
+        student:
+          type: integer
+          readOnly: true
+        student_name:
+          type: string
+          readOnly: true
+        student_email:
+          type: string
+          readOnly: true
+        course:
+          type: integer
+        course_title:
+          type: string
+          readOnly: true
+        course_slug:
+          type: string
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/EnrollmentStatusEnum'
+        progress_percentage:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        enrolled_at:
+          type: string
+          format: date-time
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_accessed:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - course
+      - course_slug
+      - course_title
+      - enrolled_at
+      - enrollment_id
+      - id
+      - student
+      - student_email
+      - student_name
+    EnrollmentStatusEnum:
+      enum:
+      - enrolled
+      - in_progress
+      - completed
+      - dropped
+      type: string
+      description: |-
+        * `enrolled` - Enrolled
+        * `in_progress` - In Progress
+        * `completed` - Completed
+        * `dropped` - Dropped
+    ForgotPasswordRequest:
+      type: object
+      description: Serializer for requesting OTP for password reset
+      properties:
+        email:
+          type: string
+          format: email
+      required:
+      - email
+    Login:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          writeOnly: true
+        remember_me:
+          type: boolean
+          default: false
+      required:
+      - email
+      - password
+    LoginResponse:
+      type: object
+      properties:
+        refresh:
+          type: string
+          readOnly: true
+        access:
+          type: string
+          readOnly: true
+        user:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+      required:
+      - access
+      - refresh
+      - user
+    Organization:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        organization_id:
+          type: string
+          format: uuid
+          readOnly: true
+        university:
+          type: integer
+        university_name:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        address:
+          type: string
+        logo:
+          type: string
+          format: uri
+          nullable: true
+        created_by:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        is_active:
+          type: boolean
+        total_colleges:
+          type: integer
+          readOnly: true
+      required:
+      - address
+      - created_at
+      - created_by
+      - id
+      - name
+      - organization_id
+      - total_colleges
+      - university
+      - university_name
+      - updated_at
+    PaginatedCollegeListList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/CollegeList'
+    PaginatedCourseListList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/CourseList'
+    PaginatedEnrollmentList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Enrollment'
+    PaginatedOrganizationList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Organization'
+    PaginatedStudentApprovalListList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentApprovalList'
+    PaginatedSyllabusList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Syllabus'
+    PaginatedTaskList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+    PaginatedTaskSubmissionList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskSubmission'
+    PaginatedTopicList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Topic'
+    PaginatedUniversityList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/University'
+    PatchedChangePassword:
+      type: object
+      properties:
+        old_password:
+          type: string
+        new_password:
+          type: string
+    PatchedCollege:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        college_id:
+          type: string
+          format: uuid
+          readOnly: true
+        organization:
+          type: integer
+        organization_name:
+          type: string
+          readOnly: true
+        university_name:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          writeOnly: true
+          description: College login password
+          minLength: 6
+        address:
+          type: string
+        phone_number:
+          type: string
+          maxLength: 20
+        max_students:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: Maximum number of students that can register
+        current_students:
+          type: integer
+          readOnly: true
+          description: Current number of registered students
+        available_seats:
+          type: integer
+          readOnly: true
+        is_registration_open:
+          type: boolean
+          readOnly: true
+        logo:
+          type: string
+          format: uri
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        created_by:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        is_active:
+          type: boolean
+    PatchedCourseCreateUpdate:
+      type: object
+      description: Serializer for creating/updating courses
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        short_description:
+          type: string
+          nullable: true
+          maxLength: 500
+        difficulty_level:
+          $ref: '#/components/schemas/DifficultyLevelEnum'
+        duration_hours:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: Estimated course duration in hours
+        status:
+          $ref: '#/components/schemas/Status399Enum'
+        thumbnail:
+          type: string
+          format: uri
+          nullable: true
+        video_intro_url:
+          type: string
+          format: uri
+          nullable: true
+          description: Introduction video URL
+          maxLength: 200
+        max_enrollments:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: 0 means unlimited
+        is_featured:
+          type: boolean
+        is_free:
+          type: boolean
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        college:
+          type: integer
+          nullable: true
+        organization:
+          type: integer
+          nullable: true
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+    PatchedEnrollment:
+      type: object
+      description: Serializer for enrollments
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        enrollment_id:
+          type: string
+          format: uuid
+          readOnly: true
+        student:
+          type: integer
+          readOnly: true
+        student_name:
+          type: string
+          readOnly: true
+        student_email:
+          type: string
+          readOnly: true
+        course:
+          type: integer
+        course_title:
+          type: string
+          readOnly: true
+        course_slug:
+          type: string
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/EnrollmentStatusEnum'
+        progress_percentage:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        enrolled_at:
+          type: string
+          format: date-time
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_accessed:
+          type: string
+          format: date-time
+          nullable: true
+    PatchedOrganization:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        organization_id:
+          type: string
+          format: uuid
+          readOnly: true
+        university:
+          type: integer
+        university_name:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        address:
+          type: string
+        logo:
+          type: string
+          format: uri
+          nullable: true
+        created_by:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        is_active:
+          type: boolean
+        total_colleges:
+          type: integer
+          readOnly: true
+    PatchedSyllabus:
+      type: object
+      description: Serializer for syllabus with nested topics
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        syllabus_id:
+          type: string
+          format: uuid
+          readOnly: true
+        course:
+          type: integer
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+        order:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          default: 0
+          description: Display order within course
+        duration_hours:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: Estimated section duration in hours
+        is_locked:
+          type: boolean
+          description: Requires previous sections completion
+        is_published:
+          type: boolean
+        topics:
+          type: array
+          items:
+            $ref: '#/components/schemas/Topic'
+          readOnly: true
+        topics_count:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedTask:
+      type: object
+      description: Serializer for tasks
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        task_id:
+          type: string
+          format: uuid
+          readOnly: true
+        course:
+          type: integer
+        course_title:
+          type: string
+          readOnly: true
+        topic:
+          type: integer
+          nullable: true
+        topic_title:
+          type: string
+          readOnly: true
+          nullable: true
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        task_type:
+          $ref: '#/components/schemas/TaskTypeEnum'
+        status:
+          $ref: '#/components/schemas/TaskStatusEnum'
+        instructions:
+          type: string
+          nullable: true
+        resource_file:
+          type: string
+          format: uri
+          nullable: true
+        reference_links:
+          description: Array of reference URLs
+        start_date:
+          type: string
+          format: date-time
+          nullable: true
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+        duration_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: Time limit in minutes
+        max_score:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        passing_score:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        allow_late_submission:
+          type: boolean
+        is_mandatory:
+          type: boolean
+        order:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        created_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        created_by_name:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedTaskSubmission:
+      type: object
+      description: Serializer for task submissions
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        submission_id:
+          type: string
+          format: uuid
+          readOnly: true
+        task:
+          type: integer
+        task_title:
+          type: string
+          readOnly: true
+        student:
+          type: integer
+          readOnly: true
+        student_name:
+          type: string
+          readOnly: true
+        student_email:
+          type: string
+          readOnly: true
+        submission_text:
+          type: string
+          nullable: true
+        submission_file:
+          type: string
+          format: uri
+          nullable: true
+        submission_links: {}
+        status:
+          $ref: '#/components/schemas/TaskSubmissionStatusEnum'
+        score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        feedback:
+          type: string
+          nullable: true
+        graded_by:
+          type: integer
+          nullable: true
+        graded_by_name:
+          type: string
+          readOnly: true
+          nullable: true
+        is_late:
+          type: boolean
+          readOnly: true
+        is_passed:
+          type: boolean
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        graded_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedTopic:
+      type: object
+      description: Serializer for topics
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        topic_id:
+          type: string
+          format: uuid
+          readOnly: true
+        syllabus:
+          type: integer
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+        content_type:
+          $ref: '#/components/schemas/ContentTypeEnum'
+        content:
+          type: string
+          nullable: true
+          description: Text content or embedded content
+        video_url:
+          type: string
+          format: uri
+          nullable: true
+          maxLength: 200
+        attachments:
+          type: string
+          format: uri
+          nullable: true
+        external_link:
+          type: string
+          format: uri
+          nullable: true
+          maxLength: 200
+        order:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          default: 0
+        duration_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: Estimated topic duration in minutes
+        is_preview:
+          type: boolean
+          description: Available before enrollment
+        is_published:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedUniversity:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        university_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        address:
+          type: string
+        logo:
+          type: string
+          format: uri
+          nullable: true
+        created_by:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        is_active:
+          type: boolean
+        total_organizations:
+          type: integer
+          readOnly: true
+        total_colleges:
+          type: integer
+          readOnly: true
+    PatchedUser:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        phone_number:
+          type: string
+          nullable: true
+          maxLength: 20
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        profile_picture:
+          type: string
+          format: uri
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+        usn:
+          type: string
+          nullable: true
+          description: University Serial Number
+          maxLength: 20
+        college:
+          type: integer
+          nullable: true
+        college_name:
+          type: string
+          nullable: true
+          description: College name if not in system
+          maxLength: 255
+        college_name_display:
+          type: string
+          readOnly: true
+        college_details:
+          type: string
+          readOnly: true
+        is_verified:
+          type: boolean
+          readOnly: true
+        is_staff:
+          type: boolean
+          readOnly: true
+          title: Staff status
+          description: Designates whether the user can log into this admin site.
+        is_superuser:
+          type: boolean
+          readOnly: true
+          title: Superuser status
+          description: Designates that this user has all permissions without explicitly
+            assigning them.
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    ResetPassword:
+      type: object
+      description: Serializer for resetting password with OTP
+      properties:
+        email:
+          type: string
+          format: email
+        otp_code:
+          type: string
+          maxLength: 6
+          minLength: 6
+        new_password:
+          type: string
+          writeOnly: true
+        confirm_password:
+          type: string
+          writeOnly: true
+      required:
+      - confirm_password
+      - email
+      - new_password
+      - otp_code
+    Status399Enum:
+      enum:
+      - draft
+      - published
+      - archived
+      type: string
+      description: |-
+        * `draft` - Draft
+        * `published` - Published
+        * `archived` - Archived
+    StudentApprovalList:
+      type: object
+      description: Serializer for listing students pending approval
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        usn:
+          type: string
+          nullable: true
+          description: University Serial Number
+          maxLength: 20
+        phone_number:
+          type: string
+          nullable: true
+          maxLength: 20
+        college:
+          type: integer
+          nullable: true
+        college_name:
+          type: string
+          readOnly: true
+        approval_status:
+          allOf:
+          - $ref: '#/components/schemas/ApprovalStatusEnum'
+          readOnly: true
+          description: |-
+            Student approval status by college
+
+            * `pending` - Pending Approval
+            * `approved` - Approved
+            * `rejected` - Rejected
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        profile_picture:
+          type: string
+          format: uri
+          nullable: true
+      required:
+      - approval_status
+      - college_name
+      - created_at
+      - email
+      - id
+      - username
+    Syllabus:
+      type: object
+      description: Serializer for syllabus with nested topics
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        syllabus_id:
+          type: string
+          format: uuid
+          readOnly: true
+        course:
+          type: integer
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+        order:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          default: 0
+          description: Display order within course
+        duration_hours:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: Estimated section duration in hours
+        is_locked:
+          type: boolean
+          description: Requires previous sections completion
+        is_published:
+          type: boolean
+        topics:
+          type: array
+          items:
+            $ref: '#/components/schemas/Topic'
+          readOnly: true
+        topics_count:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - course
+      - created_at
+      - id
+      - syllabus_id
+      - title
+      - topics
+      - topics_count
+      - updated_at
+    Task:
+      type: object
+      description: Serializer for tasks
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        task_id:
+          type: string
+          format: uuid
+          readOnly: true
+        course:
+          type: integer
+        course_title:
+          type: string
+          readOnly: true
+        topic:
+          type: integer
+          nullable: true
+        topic_title:
+          type: string
+          readOnly: true
+          nullable: true
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        task_type:
+          $ref: '#/components/schemas/TaskTypeEnum'
+        status:
+          $ref: '#/components/schemas/TaskStatusEnum'
+        instructions:
+          type: string
+          nullable: true
+        resource_file:
+          type: string
+          format: uri
+          nullable: true
+        reference_links:
+          description: Array of reference URLs
+        start_date:
+          type: string
+          format: date-time
+          nullable: true
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+        duration_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: Time limit in minutes
+        max_score:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        passing_score:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        allow_late_submission:
+          type: boolean
+        is_mandatory:
+          type: boolean
+        order:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        created_by:
+          type: integer
+          readOnly: true
+          nullable: true
+        created_by_name:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - course
+      - course_title
+      - created_at
+      - created_by
+      - created_by_name
+      - description
+      - id
+      - is_active
+      - task_id
+      - title
+      - topic_title
+      - updated_at
+    TaskStatusEnum:
+      enum:
+      - active
+      - inactive
+      - archived
+      type: string
+      description: |-
+        * `active` - Active
+        * `inactive` - Inactive
+        * `archived` - Archived
+    TaskSubmission:
+      type: object
+      description: Serializer for task submissions
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        submission_id:
+          type: string
+          format: uuid
+          readOnly: true
+        task:
+          type: integer
+        task_title:
+          type: string
+          readOnly: true
+        student:
+          type: integer
+          readOnly: true
+        student_name:
+          type: string
+          readOnly: true
+        student_email:
+          type: string
+          readOnly: true
+        submission_text:
+          type: string
+          nullable: true
+        submission_file:
+          type: string
+          format: uri
+          nullable: true
+        submission_links: {}
+        status:
+          $ref: '#/components/schemas/TaskSubmissionStatusEnum'
+        score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        feedback:
+          type: string
+          nullable: true
+        graded_by:
+          type: integer
+          nullable: true
+        graded_by_name:
+          type: string
+          readOnly: true
+          nullable: true
+        is_late:
+          type: boolean
+          readOnly: true
+        is_passed:
+          type: boolean
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        graded_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - graded_at
+      - graded_by_name
+      - id
+      - is_late
+      - is_passed
+      - student
+      - student_email
+      - student_name
+      - submission_id
+      - submitted_at
+      - task
+      - task_title
+      - updated_at
+    TaskSubmissionStatusEnum:
+      enum:
+      - draft
+      - submitted
+      - graded
+      - returned
+      type: string
+      description: |-
+        * `draft` - Draft
+        * `submitted` - Submitted
+        * `graded` - Graded
+        * `returned` - Returned for Revision
+    TaskTypeEnum:
+      enum:
+      - assignment
+      - quiz
+      - project
+      - exercise
+      - exam
+      type: string
+      description: |-
+        * `assignment` - Assignment
+        * `quiz` - Quiz
+        * `project` - Project
+        * `exercise` - Exercise
+        * `exam` - Exam
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    Topic:
+      type: object
+      description: Serializer for topics
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        topic_id:
+          type: string
+          format: uuid
+          readOnly: true
+        syllabus:
+          type: integer
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+        content_type:
+          $ref: '#/components/schemas/ContentTypeEnum'
+        content:
+          type: string
+          nullable: true
+          description: Text content or embedded content
+        video_url:
+          type: string
+          format: uri
+          nullable: true
+          maxLength: 200
+        attachments:
+          type: string
+          format: uri
+          nullable: true
+        external_link:
+          type: string
+          format: uri
+          nullable: true
+          maxLength: 200
+        order:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          default: 0
+        duration_minutes:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          description: Estimated topic duration in minutes
+        is_preview:
+          type: boolean
+          description: Available before enrollment
+        is_published:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - syllabus
+      - title
+      - topic_id
+      - updated_at
+    University:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        university_id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        address:
+          type: string
+        logo:
+          type: string
+          format: uri
+          nullable: true
+        created_by:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        is_active:
+          type: boolean
+        total_organizations:
+          type: integer
+          readOnly: true
+        total_colleges:
+          type: integer
+          readOnly: true
+      required:
+      - address
+      - created_at
+      - created_by
+      - id
+      - name
+      - total_colleges
+      - total_organizations
+      - university_id
+      - updated_at
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        phone_number:
+          type: string
+          nullable: true
+          maxLength: 20
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        profile_picture:
+          type: string
+          format: uri
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+        usn:
+          type: string
+          nullable: true
+          description: University Serial Number
+          maxLength: 20
+        college:
+          type: integer
+          nullable: true
+        college_name:
+          type: string
+          nullable: true
+          description: College name if not in system
+          maxLength: 255
+        college_name_display:
+          type: string
+          readOnly: true
+        college_details:
+          type: string
+          readOnly: true
+        is_verified:
+          type: boolean
+          readOnly: true
+        is_staff:
+          type: boolean
+          readOnly: true
+          title: Staff status
+          description: Designates whether the user can log into this admin site.
+        is_superuser:
+          type: boolean
+          readOnly: true
+          title: Superuser status
+          description: Designates that this user has all permissions without explicitly
+            assigning them.
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - college_details
+      - college_name_display
+      - created_at
+      - email
+      - id
+      - is_staff
+      - is_superuser
+      - is_verified
+      - updated_at
+      - username
+    UserRegistration:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        password:
+          type: string
+          writeOnly: true
+        password2:
+          type: string
+          writeOnly: true
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        phone_number:
+          type: string
+          nullable: true
+          maxLength: 20
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        usn:
+          type: string
+          nullable: true
+          description: University Serial Number
+          maxLength: 20
+        college:
+          type: integer
+          writeOnly: true
+          nullable: true
+        college_name:
+          type: string
+        profile_picture:
+          type: string
+          format: uri
+          nullable: true
+      required:
+      - email
+      - password
+      - password2
+      - username
+    VerifyOTP:
+      type: object
+      description: Serializer for verifying OTP code
+      properties:
+        email:
+          type: string
+          format: email
+        otp_code:
+          type: string
+          maxLength: 6
+          minLength: 6
+      required:
+      - email
+      - otp_code
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

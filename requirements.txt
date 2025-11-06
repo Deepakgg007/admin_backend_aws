@@ -1,0 +1,11 @@
+Django==5.0.1
+djangorestframework==3.14.0
+mysqlclient==2.2.1
+django-cors-headers==4.3.1
+python-decouple==3.8
+djangorestframework-simplejwt==5.3.1
+drf-spectacular==0.27.0
+pillow==10.2.0
+docker>=6.0.0
+django-filter==23.5
+django-ckeditor==6.7.0
