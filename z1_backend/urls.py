@@ -17,6 +17,8 @@ urlpatterns = [
 ]
 
 
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Serve media and static files in development
+# Note: In production, use a proper web server (nginx/apache) to serve these files
 if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

@@ -16,7 +16,7 @@ services:
     ports:
       - "8000:8000"
     environment: 
-      - DEBUG=0
+      - DEBUG=1
       - DJANGO_SETTINGS_MODULE=z1_backend.settings
     depends_on:
       - code_executor
