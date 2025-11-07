@@ -26,11 +26,11 @@ from .serializers import EnrollmentSerializer
 @permission_classes([IsAuthenticated])
 def enrollment_list(request):
     """Get enrollments for current user"""
-    print(f"\n🎯 ENROLLMENT LIST CALLED - User: {request.user}")
+    print(f"\n[DEBUG] ENROLLMENT LIST CALLED - User: {request.user}")
     enrollments = Enrollment.objects.filter(student=request.user).select_related('course')
-    print(f"📚 Found {enrollments.count()} enrollments")
+    print(f"[DEBUG] Found {enrollments.count()} enrollments")
     serializer = EnrollmentSerializer(enrollments, many=True, context={'request': request})
-    print(f"✅ Serialized data: {len(serializer.data)} items\n")
+    print(f"[DEBUG] Serialized data: {len(serializer.data)} items\n")
     return Response({
         'success': True,
         'data': serializer.data,

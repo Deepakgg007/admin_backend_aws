@@ -245,13 +245,13 @@ class SyllabusViewSet(viewsets.ModelViewSet, StandardResponseMixin):
         queryset = super().get_queryset()
         user = self.request.user
 
-        print(f"🔍 SyllabusViewSet - User: {user}, is_superuser: {user.is_superuser}")
-        print(f"🔍 User college: {getattr(user, 'college', None)}")
+        print(f"[DEBUG] SyllabusViewSet - User: {user}, is_superuser: {user.is_superuser}")
+        print(f"[DEBUG] User college: {getattr(user, 'college', None)}")
 
         # College-specific filtering for syllabi
         if hasattr(user, 'college') and user.college:
-            print(f"✅ User has college: {user.college}")
-            print(f"🔍 User class name: {user.__class__.__name__}")
+            print(f"[DEBUG] User has college: {user.college}")
+            print(f"[DEBUG] User class name: {user.__class__.__name__}")
 
             # Check if this is actually a college admin (from college authentication)
             # College admins have __class__.__name__ == 'CollegeUser' (fake user from college app)
@@ -259,26 +259,26 @@ class SyllabusViewSet(viewsets.ModelViewSet, StandardResponseMixin):
 
             if is_college_admin:
                 # College admin - show only their college's syllabi
-                print("🏢 Filtering for college admin")
+                print("[DEBUG] Filtering for college admin")
                 queryset = queryset.filter(course__college=user.college)
             elif not user.is_superuser:
                 # Regular students - show their college's syllabi + admin syllabi + enrolled courses
-                print("👤 Filtering for regular student")
+                print("[DEBUG] Filtering for regular student")
                 from django.db.models import Q
                 queryset = queryset.filter(
                     Q(course__college=user.college) |
                     Q(course__college__isnull=True) |
                     Q(course__enrollments__student=user)  # Show syllabi for enrolled courses
                 )
-                print(f"📊 Queryset count after filter: {queryset.count()}")
+                print(f"[DEBUG] Queryset count after filter: {queryset.count()}")
         else:
-            print("⚠️ User has no college")
+            print("[WARNING] User has no college")
 
         course_id = self.request.query_params.get('course')
         if course_id:
-            print(f"🎯 Filtering by course_id: {course_id}")
+            print(f"[DEBUG] Filtering by course_id: {course_id}")
             queryset = queryset.filter(course_id=course_id)
-            print(f"📊 Final queryset count: {queryset.count()}")
+            print(f"[DEBUG] Final queryset count: {queryset.count()}")
 
         return queryset.select_related('course').distinct()
 

@@ -17,8 +17,8 @@ class CourseListSerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
     creator_type = serializers.SerializerMethodField()
     college_name = serializers.CharField(source='college.name', read_only=True)
-    thumbnail = serializers.ImageField(required=False, allow_null=True, allow_empty_file=True, use_url=True)
-    intro_video = serializers.FileField(required=False, allow_null=True, allow_empty_file=True, use_url=True)
+    thumbnail = serializers.SerializerMethodField()
+    intro_video = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
@@ -28,6 +28,24 @@ class CourseListSerializer(serializers.ModelSerializer):
             'intro_video', 'video_intro_url',
             'is_featured', 'current_enrollments', 'created_by_name', 'creator_type', 'college', 'college_name', 'created_at'
         ]
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_thumbnail(self, obj):
+        if obj.thumbnail:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.thumbnail.url)
+            return obj.thumbnail.url
+        return None
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_intro_video(self, obj):
+        if obj.intro_video:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.intro_video.url)
+            return obj.intro_video.url
+        return None
 
     def get_creator_type(self, obj):
         """Determine the type of creator"""
@@ -182,8 +200,8 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     tasks = TaskSerializer(many=True, read_only=True)
     total_topics = serializers.SerializerMethodField()
     total_tasks = serializers.SerializerMethodField()
-    thumbnail = serializers.ImageField(required=False, allow_null=True, allow_empty_file=True, use_url=True)
-    intro_video = serializers.FileField(required=False, allow_null=True, allow_empty_file=True, use_url=True)
+    thumbnail = serializers.SerializerMethodField()
+    intro_video = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
@@ -219,6 +237,24 @@ class CourseDetailSerializer(serializers.ModelSerializer):
 
     def get_total_tasks(self, obj):
         return obj.tasks.filter(status='active').count()
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_thumbnail(self, obj):
+        if obj.thumbnail:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.thumbnail.url)
+            return obj.thumbnail.url
+        return None
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_intro_video(self, obj):
+        if obj.intro_video:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.intro_video.url)
+            return obj.intro_video.url
+        return None
 
 
 class CourseCreateUpdateSerializer(serializers.ModelSerializer):
@@ -351,10 +387,10 @@ from django.utils import timezone  # For validation
 logger = logging.getLogger(__name__)
 
 # ============================================
-# Mixin for Completion Check (Uses TaskSubmission JSON)
+# Mixin for Completion Check (Uses ContentProgress model)
 # ============================================
 class CompletionCheckMixin:
-    """Mixin to add is_completed check for content items using ContentSubmission model"""
+    """Mixin to add is_completed check for content items using ContentProgress model"""
     def _get_is_completed(self, obj):
         request = self.context.get('request')
         if not request or not request.user.is_authenticated:
@@ -362,33 +398,41 @@ class CompletionCheckMixin:
 
         student = request.user
 
-        # Check ContentSubmission for all content types including pages
+        # Check ContentProgress for all content types
         content_type = self._get_content_type()
 
         try:
+            # Import ContentProgress model
+            from student.models import ContentProgress
+
+            # Check if content is marked as completed in ContentProgress
             if content_type == 'document':
-                submission = ContentSubmission.objects.filter(
-                    student=student,
-                    document=obj,
-                    completed=True
+                return ContentProgress.objects.filter(
+                    user=student,
+                    task=obj.task,
+                    content_type='document',
+                    content_id=obj.id,
+                    is_completed=True
                 ).exists()
             elif content_type == 'video':
-                submission = ContentSubmission.objects.filter(
-                    student=student,
-                    video=obj,
-                    completed=True
+                return ContentProgress.objects.filter(
+                    user=student,
+                    task=obj.task,
+                    content_type='video',
+                    content_id=obj.id,
+                    is_completed=True
                 ).exists()
             elif content_type == 'page':
-                submission = ContentSubmission.objects.filter(
-                    student=student,
-                    page=obj,
-                    completed=True
+                return ContentProgress.objects.filter(
+                    user=student,
+                    task=obj.task,
+                    content_type='page',
+                    content_id=obj.id,
+                    is_completed=True
                 ).exists()
             else:
                 return False
 
-            return submission
-            
         except Exception as e:
             logger.error(f"Error checking completion: {e}")
             return False

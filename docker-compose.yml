@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
   web:
     build:
@@ -7,16 +9,18 @@ services:
     volumes:
       - .:/app
       - ./code:/code
-      - /var/run/docker.sock:/var/run/docker.sock   # allows Django to talk to Docker
+      # 👇 Add these lines so media and static files exist on the EC2 host
+      - ./media:/app/media
+      - ./static:/app/static
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
-      - "1122:1122"
+      - "8000:8000"
+    environment: 
+      - DEBUG=0
+      - DJANGO_SETTINGS_MODULE=z1_backend.settings
     depends_on:
       - code_executor
-    environment:
-      - DEBUG=1
-      - DJANGO_SETTINGS_MODULE=z1_backend.settings
     restart: unless-stopped
-    command: python manage.py runserver 0.0.0.0:1122
 
   code_executor:
     build:
@@ -24,7 +28,7 @@ services:
       dockerfile: Dockerfile.code_executor
     container_name: z1_code_executor
     volumes:
-      - ./code:/code     # mount code folder so Django can copy files
+      - ./code:/code
     tty: true
     stdin_open: true
     restart: unless-stopped

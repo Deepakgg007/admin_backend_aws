@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from drf_spectacular.utils import extend_schema_field
 from .models import StudentChallengeSubmission, ContentSubmission, ContentProgress
 from .user_profile_models import UserProfile, Badge, UserBadge, UserActivity, LeaderboardCache
 from coding.models import Challenge
@@ -156,7 +157,7 @@ class UserProfileStatsSerializer(serializers.ModelSerializer):
 class LeaderboardEntrySerializer(serializers.ModelSerializer):
     """Serializer for leaderboard entries"""
     username = serializers.CharField(source='user.username', read_only=True)
-    profile_picture = serializers.ImageField(source='user.profile_picture', read_only=True)
+    profile_picture = serializers.SerializerMethodField()
     college_name = serializers.SerializerMethodField()
     
     class Meta:
@@ -170,6 +171,15 @@ class LeaderboardEntrySerializer(serializers.ModelSerializer):
     
     def get_college_name(self, obj):
         return obj.user.get_college_display()
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_profile_picture(self, obj):
+        if obj.user and obj.user.profile_picture:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.user.profile_picture.url)
+            return obj.user.profile_picture.url
+        return None
 
 
 class UserActivitySerializer(serializers.ModelSerializer):

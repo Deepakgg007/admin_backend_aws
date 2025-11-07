@@ -12,13 +12,34 @@ class UniversitySerializer(serializers.ModelSerializer):
     created_by = UserSerializer(read_only=True)
     total_organizations = serializers.SerializerMethodField()
     total_colleges = serializers.SerializerMethodField()
+    logo_display = serializers.SerializerMethodField()
 
     class Meta:
         model = University
-        fields = ['id', 'university_id', 'name', 'address', 'logo',
+        fields = ['id', 'university_id', 'name', 'address', 'logo', 'logo_display',
                  'created_by', 'created_at', 'updated_at', 'is_active',
                  'total_organizations', 'total_colleges']
-        read_only_fields = ['id', 'university_id', 'created_by', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'university_id', 'created_by', 'created_at', 'updated_at', 'logo_display']
+        extra_kwargs = {
+            'logo': {'write_only': True, 'required': False, 'allow_null': True}
+        }
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_logo_display(self, obj):
+        if obj.logo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.logo.url)
+            return obj.logo.url
+        return None
+
+    def to_internal_value(self, data):
+        # Handle logo field - if it's a string "null" or "Null", treat it as None
+        if 'logo' in data:
+            if data['logo'] in ['null', 'Null', 'NULL', '', None]:
+                data = data.copy()
+                data.pop('logo', None)
+        return super().to_internal_value(data)
 
     @extend_schema_field(serializers.IntegerField())
     def get_total_organizations(self, obj):
@@ -34,13 +55,34 @@ class OrganizationSerializer(serializers.ModelSerializer):
     created_by = UserSerializer(read_only=True)
     university_name = serializers.CharField(source='university.name', read_only=True)
     total_colleges = serializers.SerializerMethodField()
+    logo_display = serializers.SerializerMethodField()
 
     class Meta:
         model = Organization
         fields = ['id', 'organization_id', 'university', 'university_name',
-                 'name', 'address', 'logo', 'created_by', 'created_at',
+                 'name', 'address', 'logo', 'logo_display', 'created_by', 'created_at',
                  'updated_at', 'is_active', 'total_colleges']
-        read_only_fields = ['id', 'organization_id', 'created_by', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'organization_id', 'created_by', 'created_at', 'updated_at', 'logo_display']
+        extra_kwargs = {
+            'logo': {'write_only': True, 'required': False, 'allow_null': True}
+        }
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_logo_display(self, obj):
+        if obj.logo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.logo.url)
+            return obj.logo.url
+        return None
+
+    def to_internal_value(self, data):
+        # Handle logo field - if it's a string "null" or "Null", treat it as None
+        if 'logo' in data:
+            if data['logo'] in ['null', 'Null', 'NULL', '', None]:
+                data = data.copy()
+                data.pop('logo', None)
+        return super().to_internal_value(data)
 
     @extend_schema_field(serializers.IntegerField())
     def get_total_colleges(self, obj):
@@ -54,7 +96,7 @@ class CollegeSerializer(serializers.ModelSerializer):
     university_name = serializers.CharField(source='organization.university.name', read_only=True)
     available_seats = serializers.SerializerMethodField()
     is_registration_open = serializers.SerializerMethodField()
-    logo = serializers.ImageField(required=False, allow_null=True, allow_empty_file=True)
+    logo_display = serializers.SerializerMethodField()
     password = serializers.CharField(write_only=True, required=True, min_length=6, help_text="College login password")
 
     class Meta:
@@ -62,10 +104,22 @@ class CollegeSerializer(serializers.ModelSerializer):
         fields = ['id', 'college_id', 'organization', 'organization_name',
                  'university_name', 'name', 'email', 'password', 'address',
                  'phone_number', 'max_students', 'current_students',
-                 'available_seats', 'is_registration_open', 'logo',
+                 'available_seats', 'is_registration_open', 'logo', 'logo_display',
                  'description', 'created_by', 'created_at', 'updated_at', 'is_active']
         read_only_fields = ['id', 'college_id', 'created_by', 'created_at',
-                          'updated_at', 'current_students']
+                          'updated_at', 'current_students', 'logo_display']
+        extra_kwargs = {
+            'logo': {'write_only': True, 'required': False, 'allow_null': True}
+        }
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_logo_display(self, obj):
+        if obj.logo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.logo.url)
+            return obj.logo.url
+        return None
 
     @extend_schema_field(serializers.IntegerField())
     def get_available_seats(self, obj):
@@ -111,7 +165,7 @@ class CollegeSerializer(serializers.ModelSerializer):
         if created:
             user.set_password(password)
             user.save()
-            print(f"✅ User account created for college: {college.name} (email: {college.email})")
+            print(f"[SUCCESS] User account created for college: {college.name} (email: {college.email})")
         else:
             # Update existing user with college info
             user.is_staff = True
@@ -119,7 +173,7 @@ class CollegeSerializer(serializers.ModelSerializer):
             user.college_name = college.name
             user.set_password(password)
             user.save()
-            print(f"✅ Existing user updated with college info: {college.name}")
+            print(f"[SUCCESS] Existing user updated with college info: {college.name}")
 
         return college
 
@@ -146,7 +200,7 @@ class CollegeSerializer(serializers.ModelSerializer):
             if password:
                 user.set_password(password)
             user.save()
-            print(f"✅ User account updated for college: {instance.name}")
+            print(f"[SUCCESS] User account updated for college: {instance.name}")
         except User.DoesNotExist:
             # If user doesn't exist, create one
             user = User.objects.create(
@@ -164,7 +218,7 @@ class CollegeSerializer(serializers.ModelSerializer):
                 # Use the college's existing password
                 user.password = instance.password
             user.save()
-            print(f"✅ User account created (during update) for college: {instance.name}")
+            print(f"[SUCCESS] User account created (during update) for college: {instance.name}")
 
         return instance
 
@@ -175,6 +229,7 @@ class CollegeListSerializer(serializers.ModelSerializer):
     university_name = serializers.CharField(source='organization.university.name', read_only=True)
     available_seats = serializers.SerializerMethodField()
     is_registration_open = serializers.SerializerMethodField()
+    logo = serializers.SerializerMethodField()
 
     class Meta:
         model = College
@@ -182,6 +237,15 @@ class CollegeListSerializer(serializers.ModelSerializer):
                  'university_name', 'email','address', 'phone_number', 'max_students',
                  'current_students', 'available_seats', 'is_registration_open',
                  'logo','description', 'created_by','created_at','updated_at', 'is_active']
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_logo(self, obj):
+        if obj.logo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.logo.url)
+            return obj.logo.url
+        return None
 
     @extend_schema_field(serializers.IntegerField())
     def get_available_seats(self, obj):

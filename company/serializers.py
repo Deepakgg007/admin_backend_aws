@@ -1,6 +1,7 @@
 # company/serializers.py
 
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 from .models import Company, Concept, ConceptChallenge, Job
 from coding.models import Challenge
 
@@ -13,11 +14,12 @@ class CompanySerializer(serializers.ModelSerializer):
     days_until_hiring_ends = serializers.IntegerField(read_only=True)
     college_name = serializers.CharField(source='college.name', read_only=True, allow_null=True)
     college_organization = serializers.CharField(source='college.organization.name', read_only=True, allow_null=True)
+    image_display = serializers.SerializerMethodField()
 
     class Meta:
         model = Company
         fields = [
-            'id', 'name', 'slug', 'image', 'description',
+            'id', 'name', 'slug', 'image', 'image_display', 'description',
             'college', 'college_name', 'college_organization',
             'hiring_period_start', 'hiring_period_end',
             'website', 'location', 'industry', 'employee_count',
@@ -26,7 +28,27 @@ class CompanySerializer(serializers.ModelSerializer):
             'total_concepts', 'total_challenges',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['slug', 'is_hiring', 'created_at', 'updated_at']
+        read_only_fields = ['slug', 'is_hiring', 'created_at', 'updated_at', 'image_display']
+        extra_kwargs = {
+            'image': {'write_only': True, 'required': False, 'allow_null': True}
+        }
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_image_display(self, obj):
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None
+
+    def to_internal_value(self, data):
+        # Handle image field - if it's a string "null" or "Null", treat it as None
+        if 'image' in data:
+            if data['image'] in ['null', 'Null', 'NULL', '', None]:
+                data = data.copy()
+                data.pop('image', None)
+        return super().to_internal_value(data)
 
 
 class ConceptListSerializer(serializers.ModelSerializer):
@@ -92,7 +114,7 @@ class ConceptChallengeSerializer(serializers.ModelSerializer):
 class JobSerializer(serializers.ModelSerializer):
     """Serializer for Job model"""
     company_name = serializers.CharField(source='company.name', read_only=True)
-    company_logo = serializers.ImageField(source='company.image', read_only=True)
+    company_logo = serializers.SerializerMethodField()
     college_name = serializers.CharField(source='company.college.name', read_only=True, allow_null=True)
     is_deadline_passed = serializers.BooleanField(read_only=True)
     days_until_deadline = serializers.IntegerField(read_only=True)
@@ -110,11 +132,20 @@ class JobSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['slug', 'created_at', 'updated_at']
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_company_logo(self, obj):
+        if obj.company and obj.company.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.company.image.url)
+            return obj.company.image.url
+        return None
+
 
 class JobListSerializer(serializers.ModelSerializer):
     """Minimal serializer for listing jobs"""
     company_name = serializers.CharField(source='company.name', read_only=True)
-    company_logo = serializers.ImageField(source='company.image', read_only=True)
+    company_logo = serializers.SerializerMethodField()
     college_name = serializers.CharField(source='company.college.name', read_only=True, allow_null=True)
     is_deadline_passed = serializers.BooleanField(read_only=True)
     days_until_deadline = serializers.IntegerField(read_only=True)
@@ -128,3 +159,12 @@ class JobListSerializer(serializers.ModelSerializer):
             'application_deadline', 'is_active', 'is_featured',
             'is_deadline_passed', 'days_until_deadline', 'created_at'
         ]
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_company_logo(self, obj):
+        if obj.company and obj.company.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.company.image.url)
+            return obj.company.image.url
+        return None
