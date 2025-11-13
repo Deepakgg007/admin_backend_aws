@@ -152,11 +152,12 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+
 # REST Framework Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
         'college.authentication.CollegeJWTAuthentication',  # Custom auth for colleges
-        'rest_framework_simplejwt.authentication.JWTAuthentication',  # Fallback for regular users
     ),
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
@@ -181,12 +182,35 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'user_id',
 }
 
+
 # CORS Configuration
 CORS_ALLOWED_ORIGINS = [
+    "http://z1-admin.haegl.in",
+    "http://z1-college.haegl.in",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://z1-admin.haegl.in",
+    "https://z1-college.haegl.in",
+    "http://z1-student.haegl.in",
+    "https://z1-student.haegl.in",
+    "http://16.16.76.74",
+    "http://16.16.76.74:3000",
+    "http://16.16.76.74:5173",
+]
+
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://z1-admin.haegl.in",
+    "https://z1-admin.haegl.in",
+    "http://z1-college.haegl.in",
+    "https://z1-college.haegl.in",
+    "http://z1-student.haegl.in",
+    "https://z1-student.haegl.in",
+    "http://16.16.76.74",
+    "http://16.16.76.74:3000",
+    "http://16.16.76.74:5173",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -227,14 +251,3 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = config('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = config('EMAIL_HOST_USER')
-
-# API Documentation
-SPECTACULAR_SETTINGS = {
-    'TITLE': 'Z1 Solution API',
-    'DESCRIPTION': 'Advanced REST API for Z1 Solution Backend',
-    'VERSION': '1.0.0',
-    'SERVE_INCLUDE_SCHEMA': False,
-    'SWAGGER_UI_SETTINGS': {
-        'persistAuthorization': True,
-    },
-}

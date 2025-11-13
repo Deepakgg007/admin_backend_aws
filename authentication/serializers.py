@@ -59,6 +59,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     college = serializers.IntegerField(required=False, allow_null=True, write_only=True)
     college_name = serializers.CharField(required=False, allow_blank=True)
     profile_picture = serializers.ImageField(required=False, allow_null=True, allow_empty_file=True, use_url=True)
+    usn = serializers.CharField(required=True, help_text="University Serial Number is required")
 
     class Meta:
         model = User
@@ -70,10 +71,12 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({"password": "Password fields didn't match."})
 
-        # Validate USN uniqueness if provided
-        if 'usn' in attrs and attrs['usn']:
-            if User.objects.filter(usn=attrs['usn']).exists():
-                raise serializers.ValidationError({"usn": "USN already exists."})
+        # Validate USN is required and unique
+        if not attrs.get('usn') or not attrs['usn'].strip():
+            raise serializers.ValidationError({"usn": "USN (University Serial Number) is required."})
+
+        if User.objects.filter(usn=attrs['usn']).exists():
+            raise serializers.ValidationError({"usn": "USN already exists. Please use a different USN."})
 
         # Validate college ID if provided
         if 'college' in attrs and attrs['college'] is not None:
@@ -136,15 +139,30 @@ class LoginSerializer(serializers.Serializer):
         email = attrs.get('email')
         password = attrs.get('password')
 
-        if email and password:
-            user = authenticate(request=self.context.get('request'),
-                              username=email, password=password)
-            if not user:
-                raise serializers.ValidationError('Invalid credentials')
-        else:
+        if not email or not password:
             raise serializers.ValidationError('Must include email and password')
 
-        attrs['user'] = user
+        # First check if user exists
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            raise serializers.ValidationError({
+                'email': 'No account found with this email address. Please register.'
+            })
+
+        # Then authenticate with password
+        authenticated_user = authenticate(
+            request=self.context.get('request'),
+            username=email,
+            password=password
+        )
+
+        if not authenticated_user:
+            raise serializers.ValidationError({
+                'password': 'Incorrect password. Please try again.'
+            })
+
+        attrs['user'] = authenticated_user
         return attrs
 
 

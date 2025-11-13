@@ -30,14 +30,6 @@ class Certification(models.Model):
         default=True,
         help_text="Only active certifications are visible to students"
     )
-    college = models.ForeignKey(
-        'api.College',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='certifications',
-        help_text="If set, only students from this college can access this certification"
-    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -46,7 +38,6 @@ class Certification(models.Model):
         verbose_name = "Certification"
         verbose_name_plural = "Certifications"
         indexes = [
-            models.Index(fields=['college', 'is_active']),
             models.Index(fields=['course', 'is_active']),
         ]
 
@@ -59,8 +50,7 @@ class Certification(models.Model):
             raise ValidationError("At least 1 attempt must be allowed")
 
     def __str__(self):
-        college_info = f" [{self.college.name}]" if self.college else " [Global]"
-        return f"{self.title} - {self.course.title}{college_info}"
+        return f"{self.title} - {self.course.title}"
 
     def get_total_weight(self):
         """Calculate total weight of all active questions"""
@@ -83,47 +73,6 @@ class Certification(models.Model):
             completed_at__isnull=False
         ).aggregate(avg=models.Avg('score'))
         return round(result['avg'] or 0, 2)
-
-    def can_user_attempt(self, user):
-        """Check if user can start a new attempt"""
-        # Check college restriction
-        if self.college:
-            if not hasattr(user, 'student_profile') or user.student_profile.college != self.college:
-                return False, "This certification is only available to students from a specific college"
-        
-        # Check enrollment
-        if not Enrollment.objects.filter(
-            student=user,
-            course=self.course,
-            status='active'
-        ).exists():
-            return False, "Not enrolled in this course"
-        
-        # Check incomplete attempts
-        if self.attempts.filter(
-            user=user,
-            completed_at__isnull=True
-        ).exists():
-            return False, "You have an incomplete attempt"
-        
-        # Check max attempts
-        attempts_count = self.attempts.filter(user=user).count()
-        if attempts_count >= self.max_attempts:
-            return False, "Maximum attempts reached"
-        
-        return True, "Can attempt"
-
-    def is_accessible_by_user(self, user):
-        """Check if user can access this certification based on college restriction"""
-        if not self.college:
-            # Global certification - accessible to all enrolled students
-            return True
-        
-        # College-specific certification - check if user belongs to the college
-        if hasattr(user, 'student_profile'):
-            return user.student_profile.college == self.college
-        
-        return False
 
 
 class CertificationQuestion(models.Model):

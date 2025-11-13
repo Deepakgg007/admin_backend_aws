@@ -56,6 +56,21 @@ class CustomUser(AbstractUser):
         return self.college_name or "No college specified"
 
 
+class UserToken(models.Model):
+    """Model to track active user tokens for single session management"""
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='active_token')
+    access_token = models.TextField()
+    refresh_token = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'user_tokens'
+
+    def __str__(self):
+        return f"{self.user.email} - Active Token"
+
+
 class OTP(models.Model):
     """Model to store OTP codes for password reset"""
     OTP_TYPE_CHOICES = [

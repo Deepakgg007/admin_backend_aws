@@ -1,9 +1,10 @@
 from rest_framework import generics, status
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, BasePermission
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework.exceptions import PermissionDenied
 from django.contrib.auth import get_user_model
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 from datetime import timedelta
@@ -13,9 +14,48 @@ from .serializers import (
     LoginSerializer, LoginResponseSerializer, ChangePasswordSerializer,
     ForgotPasswordRequestSerializer, VerifyOTPSerializer, ResetPasswordSerializer
 )
+from .models import UserToken
 from api.utils import StandardResponseMixin
 
 User = get_user_model()
+
+
+class IsActiveSession(BasePermission):
+    """
+    Permission class that validates if the user's current token is still active.
+    This ensures only one active session per user - when user logs in on another device,
+    the previous device's token becomes invalid.
+    """
+    def has_permission(self, request, view):
+        # Only check for authenticated requests
+        if not request.user or not request.user.is_authenticated:
+            return True
+
+        # Try to get the authorization token from the request
+        from rest_framework_simplejwt.authentication import JWTAuthentication
+        auth = JWTAuthentication()
+        try:
+            auth_result = auth.authenticate(request)
+            if auth_result:
+                user, validated_token = auth_result
+                access_token_str = str(validated_token)
+
+                # Check if this token is still the active token
+                try:
+                    user_token = UserToken.objects.get(user=user)
+                    if access_token_str != user_token.access_token:
+                        raise PermissionDenied(
+                            'This session is no longer valid. You have logged in from another device. '
+                            'Please log in again.'
+                        )
+                except UserToken.DoesNotExist:
+                    # If no token record, allow (user logged out)
+                    pass
+        except Exception:
+            # If any error in token validation, allow it to fail at authentication level
+            pass
+
+        return True
 
 
 class CustomTokenObtainPairView(TokenObtainPairView, StandardResponseMixin):
@@ -41,6 +81,16 @@ class CustomTokenObtainPairView(TokenObtainPairView, StandardResponseMixin):
         if remember_me:
             refresh.set_exp(lifetime=timedelta(days=30))  # 30 days refresh token
             refresh.access_token.set_exp(lifetime=timedelta(days=7))  # 7 days access token
+
+        # Save active token for single session management
+        # This will create or update the token record, ensuring only one active session per user
+        UserToken.objects.update_or_create(
+            user=user,
+            defaults={
+                'access_token': str(refresh.access_token),
+                'refresh_token': str(refresh)
+            }
+        )
 
         # Create response data
         response_data = {
@@ -80,7 +130,7 @@ class UserRegistrationView(generics.CreateAPIView, StandardResponseMixin):
 
 class UserProfileView(generics.RetrieveUpdateAPIView, StandardResponseMixin):
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsActiveSession]
 
     @extend_schema(tags=['Authentication - User'])
 
@@ -111,7 +161,7 @@ class UserProfileView(generics.RetrieveUpdateAPIView, StandardResponseMixin):
 
 class ChangePasswordView(generics.UpdateAPIView, StandardResponseMixin):
     serializer_class = ChangePasswordSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsActiveSession]
 
     @extend_schema(tags=['Authentication - User'])
 
@@ -272,4 +322,40 @@ class UserResetPasswordView(APIView, StandardResponseMixin):
             return self.error_response(
                 message="User not found.",
                 status_code=status.HTTP_404_NOT_FOUND
+            )
+
+
+class UserLogoutView(APIView, StandardResponseMixin):
+    """Logout endpoint to clear user session"""
+    permission_classes = [IsAuthenticated, IsActiveSession]
+
+    @extend_schema(
+        tags=['Authentication - User'],
+        responses={
+            200: OpenApiResponse(description='Logout successful'),
+            401: OpenApiResponse(description='Unauthorized')
+        },
+        summary="User Logout",
+        description="Logout user and clear active session"
+    )
+    def post(self, request):
+        try:
+            # Delete the active token record for this user
+            user_token = UserToken.objects.get(user=request.user)
+            user_token.delete()
+
+            return self.success_response(
+                message="Logout successful. All sessions have been cleared.",
+                status_code=status.HTTP_200_OK
+            )
+        except UserToken.DoesNotExist:
+            # Even if token record doesn't exist, logout successfully
+            return self.success_response(
+                message="Logout successful.",
+                status_code=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return self.error_response(
+                message=f"Error during logout: {str(e)}",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

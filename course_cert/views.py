@@ -1,11 +1,12 @@
 from django.db import transaction
 from rest_framework import viewsets, filters, status
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from django.utils import timezone
 from django.http import HttpResponse, FileResponse
 from django.shortcuts import get_object_or_404
+from django.views.decorators.http import require_http_methods
 
 from api.utils import StandardResponseMixin, CustomPagination
 from .permissions import IsSuperUserOrStaff
@@ -394,26 +395,106 @@ class StudentCertificationAttemptViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"])
     def download_certificate(self, request, pk=None):
         """Download certificate PDF for a passed attempt"""
-        attempt = self.get_object()
-        
+        try:
+            attempt = self.get_object()
+
+            if not attempt.passed:
+                return Response(
+                    {"detail": "Certificate not available. Attempt did not pass."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Generate PDF
+            pdf_buffer = generate_certificate_pdf(attempt)
+
+            # Ensure buffer is at the beginning
+            if hasattr(pdf_buffer, 'seek'):
+                pdf_buffer.seek(0)
+
+            # Create filename
+            filename = (
+                f"certificate_{attempt.certification.title.replace(' ', '_')}_"
+                f"{attempt.user.username}.pdf"
+            )
+
+            # Return FileResponse with proper headers to bypass DRF rendering
+            response = FileResponse(
+                pdf_buffer,
+                content_type="application/pdf",
+                as_attachment=True,
+                filename=filename
+            )
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response['Pragma'] = 'no-cache'
+            response['Expires'] = '0'
+
+            return response
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error generating certificate: {str(e)}", exc_info=True)
+            return Response(
+                {"detail": f"Error generating certificate: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+# Standalone view for certificate download that bypasses DRF rendering
+@api_view(['GET'])
+def download_certificate_view(request, attempt_id):
+    """
+    Standalone API view for downloading certificates.
+    This bypasses DRF rendering to properly return PDF files.
+    """
+    try:
+        # Get the attempt
+        attempt = CertificationAttempt.objects.select_related(
+            'user', 'certification'
+        ).get(id=attempt_id, user=request.user)
+
         if not attempt.passed:
             return Response(
                 {"detail": "Certificate not available. Attempt did not pass."},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         # Generate PDF
         pdf_buffer = generate_certificate_pdf(attempt)
-        
-        response = FileResponse(
-            pdf_buffer,
-            content_type="application/pdf"
-        )
-        
+
+        # Ensure buffer is at the beginning
+        if hasattr(pdf_buffer, 'seek'):
+            pdf_buffer.seek(0)
+
+        # Create filename
         filename = (
             f"certificate_{attempt.certification.title.replace(' ', '_')}_"
             f"{attempt.user.username}.pdf"
         )
-        response["Content-Disposition"] = f'attachment; filename="{filename}"'
-        
+
+        # Return FileResponse with proper headers
+        response = FileResponse(
+            pdf_buffer,
+            content_type="application/pdf",
+            as_attachment=True,
+            filename=filename
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+
         return response
+    except CertificationAttempt.DoesNotExist:
+        return Response(
+            {"detail": "Attempt not found or does not belong to you."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error generating certificate: {str(e)}", exc_info=True)
+        return Response(
+            {"detail": f"Error generating certificate: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
