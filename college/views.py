@@ -21,6 +21,7 @@ from .serializers import (
     StudentApprovalActionSerializer,
     StudentDetailWithApprovalSerializer
 )
+from .permissions import IsCollegeAuthenticated
 
 User = get_user_model()
 
@@ -124,7 +125,7 @@ class CollegeLoginView(APIView, StandardResponseMixin):
 # Student Approval Views
 class PendingStudentsView(generics.ListAPIView, StandardResponseMixin):
     serializer_class = StudentApprovalListSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsCollegeAuthenticated]
     pagination_class = CustomPagination
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['email', 'first_name', 'last_name', 'usn']
@@ -139,23 +140,18 @@ class PendingStudentsView(generics.ListAPIView, StandardResponseMixin):
         return self.list(request, *args, **kwargs)
 
     def get_queryset(self):
-        # Get college_id from JWT token
-        college_id = get_college_id_from_token(self.request)
-
-        if not college_id:
+        # Get college from authenticated request (set by IsCollegeAuthenticated permission)
+        if not hasattr(self.request.user, 'college') or self.request.user.college is None:
             return User.objects.none()
 
-        try:
-            college = College.objects.get(college_id=college_id)
-            # Only show students (not staff/admins) registered to this college
-            return User.objects.filter(
-                college=college,
-                approval_status='pending',
-                is_staff=False,  # Exclude staff/admins
-                is_superuser=False  # Exclude superusers
-            ).select_related('college').order_by('-created_at')
-        except College.DoesNotExist:
-            return User.objects.none()
+        college = self.request.user.college
+        # Only show students (not staff/admins) registered to this college
+        return User.objects.filter(
+            college=college,
+            approval_status='pending',
+            is_staff=False,  # Exclude staff/admins
+            is_superuser=False  # Exclude superusers
+        ).select_related('college').order_by('-created_at')
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
@@ -168,7 +164,7 @@ class PendingStudentsView(generics.ListAPIView, StandardResponseMixin):
 
 
 class StudentApprovalActionView(APIView, StandardResponseMixin):
-    permission_classes = [AllowAny]
+    permission_classes = [IsCollegeAuthenticated]
 
     def get_serializer_class(self):
         from .serializers import StudentApprovalActionSerializer
@@ -182,16 +178,11 @@ class StudentApprovalActionView(APIView, StandardResponseMixin):
     def post(self, request, student_id):
         from .serializers import StudentApprovalActionSerializer, StudentDetailWithApprovalSerializer
 
-        # Get college_id from JWT token
-        college_id = get_college_id_from_token(request)
-
-        if not college_id:
+        # Get college from authenticated request (set by IsCollegeAuthenticated permission)
+        if not hasattr(request.user, 'college') or request.user.college is None:
             return self.error_response(message="Authentication required. Please login as college.", status_code=status.HTTP_401_UNAUTHORIZED)
 
-        try:
-            college = College.objects.get(college_id=college_id)
-        except College.DoesNotExist:
-            return self.error_response(message="College not found.", status_code=status.HTTP_404_NOT_FOUND)
+        college = request.user.college
 
         try:
             student = User.objects.get(id=student_id, is_staff=False, is_superuser=False)
@@ -259,7 +250,7 @@ class StudentApprovalActionView(APIView, StandardResponseMixin):
 
 class StudentDeleteView(APIView, StandardResponseMixin):
     """Delete a student registered to the college"""
-    permission_classes = [AllowAny]
+    permission_classes = [IsCollegeAuthenticated]
 
     @extend_schema(
         tags=['College - Student Approval'],
@@ -267,16 +258,11 @@ class StudentDeleteView(APIView, StandardResponseMixin):
         description="Delete a student who registered to the authenticated college. This permanently removes the student account."
     )
     def delete(self, request, student_id):
-        # Get college_id from JWT token
-        college_id = get_college_id_from_token(request)
-
-        if not college_id:
+        # Get college from authenticated request (set by IsCollegeAuthenticated permission)
+        if not hasattr(request.user, 'college') or request.user.college is None:
             return self.error_response(message="Authentication required. Please login as college.", status_code=status.HTTP_401_UNAUTHORIZED)
 
-        try:
-            college = College.objects.get(college_id=college_id)
-        except College.DoesNotExist:
-            return self.error_response(message="College not found.", status_code=status.HTTP_404_NOT_FOUND)
+        college = request.user.college
 
         try:
             student = User.objects.get(id=student_id, is_staff=False, is_superuser=False)
@@ -314,7 +300,7 @@ class StudentDeleteView(APIView, StandardResponseMixin):
 
 class CollegeStudentCountView(APIView, StandardResponseMixin):
     """Get student count statistics and list for a college"""
-    permission_classes = [AllowAny]
+    permission_classes = [IsCollegeAuthenticated]
 
     @extend_schema(
         tags=['College - Student Approval'],
@@ -322,16 +308,11 @@ class CollegeStudentCountView(APIView, StandardResponseMixin):
         description="Returns the count and list of students (pending, approved, rejected, total) for the authenticated college from JWT token"
     )
     def get(self, request):
-        # Get college_id from JWT token
-        college_id = get_college_id_from_token(request)
-
-        if not college_id:
+        # Get college from authenticated request (set by IsCollegeAuthenticated permission)
+        if not hasattr(request.user, 'college') or request.user.college is None:
             return self.error_response(message="Authentication required. Please login as college.", status_code=status.HTTP_401_UNAUTHORIZED)
 
-        try:
-            college = College.objects.get(college_id=college_id)
-        except College.DoesNotExist:
-            return self.error_response(message="College not found.", status_code=status.HTTP_404_NOT_FOUND)
+        college = request.user.college
 
         # Get all students (not staff/admins) for this college
         all_students = User.objects.filter(
@@ -546,7 +527,7 @@ class EnrolledStudentsListView(generics.ListAPIView, StandardResponseMixin):
     List all students enrolled in courses created by this college
     Includes enrollment details and completion progress
     """
-    permission_classes = [AllowAny]  # Authentication via JWT token
+    permission_classes = [IsCollegeAuthenticated]  # Authentication via JWT token
     pagination_class = CustomPagination
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['student__first_name', 'student__last_name', 'student__email', 'student__usn', 'course__title']
@@ -561,16 +542,11 @@ class EnrolledStudentsListView(generics.ListAPIView, StandardResponseMixin):
         """Get enrollments only for courses created by this college"""
         from courses.models import Enrollment
 
-        # Get college_id from JWT token
-        college_id = get_college_id_from_token(self.request)
-
-        if not college_id:
+        # Get college from authenticated request (set by IsCollegeAuthenticated permission)
+        if not hasattr(self.request.user, 'college') or self.request.user.college is None:
             return Enrollment.objects.none()
 
-        try:
-            college = College.objects.get(college_id=college_id)
-        except College.DoesNotExist:
-            return Enrollment.objects.none()
+        college = self.request.user.college
 
         # Get enrollments for courses created by this college
         queryset = Enrollment.objects.filter(
@@ -601,9 +577,8 @@ class EnrolledStudentsListView(generics.ListAPIView, StandardResponseMixin):
         """Override list to provide custom response format"""
         queryset = self.filter_queryset(self.get_queryset())
 
-        # Get college for context
-        college_id = get_college_id_from_token(request)
-        if not college_id:
+        # Get college from authenticated request (set by IsCollegeAuthenticated permission)
+        if not hasattr(request.user, 'college') or request.user.college is None:
             return self.error_response(
                 message="Authentication required. Please login as college.",
                 status_code=status.HTTP_401_UNAUTHORIZED

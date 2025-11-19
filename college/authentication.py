@@ -18,62 +18,57 @@ class CollegeJWTAuthentication(JWTAuthentication):
         """
         Override to check if token is for a college or a user
         """
-        try:
-            # Check if this is a college token
-            user_type = validated_token.get('user_type')
+        # Check if this is a college token
+        user_type = validated_token.get('user_type')
 
-            if user_type == 'college':
-                # This is a college token
-                college_id = validated_token.get('college_id')
-                if not college_id:
-                    raise InvalidToken('Token does not contain college_id')
+        if user_type == 'college':
+            # This is a college token
+            college_id = validated_token.get('college_id')
+            if not college_id:
+                raise InvalidToken('Token does not contain college_id')
 
-                try:
-                    college = College.objects.get(college_id=college_id, is_active=True)
+            try:
+                college = College.objects.get(college_id=college_id, is_active=True)
+            except College.DoesNotExist:
+                raise AuthenticationFailed('College not found or not active')
 
-                    # Create a fake user object for DRF
-                    class CollegeUser:
-                        def __init__(self, college):
-                            self._id = college.id
-                            self._pk = college.id
-                            self.is_active = college.is_active
-                            self.email = college.email
-                            self.college_id = college.college_id
-                            self.college = college
-                            self.is_staff = False
-                            self.is_superuser = False
-                            self.is_college = True
+            # Create a fake user object for DRF
+            class CollegeUser:
+                def __init__(self, college):
+                    self._id = college.id
+                    self._pk = college.id
+                    self.is_active = college.is_active
+                    self.email = college.email
+                    self.college_id = college.college_id
+                    self.college = college
+                    self.is_staff = False
+                    self.is_superuser = False
+                    self.is_college = True
 
-                        @property
-                        def id(self):
-                            return self._id
+                @property
+                def id(self):
+                    return self._id
 
-                        @property
-                        def pk(self):
-                            return self._pk
+                @property
+                def pk(self):
+                    return self._pk
 
-                        @property
-                        def is_anonymous(self):
-                            return False
+                @property
+                def is_anonymous(self):
+                    return False
 
-                        @property
-                        def is_authenticated(self):
-                            return True
+                @property
+                def is_authenticated(self):
+                    return True
 
-                        def __int__(self):
-                            """Allow casting to int for database queries"""
-                            return self._id
+                def __int__(self):
+                    """Allow casting to int for database queries"""
+                    return self._id
 
-                        def __str__(self):
-                            return f"CollegeUser({self.email})"
+                def __str__(self):
+                    return f"CollegeUser({self.email})"
 
-                    return CollegeUser(college)
-
-                except College.DoesNotExist:
-                    raise AuthenticationFailed('College not found')
-            else:
-                # Regular user token - use default behavior
-                return super().get_user(validated_token)
-
-        except Exception as e:
-            raise InvalidToken(f'Token validation failed: {str(e)}')
+            return CollegeUser(college)
+        else:
+            # Regular user token - use default behavior
+            return super().get_user(validated_token)

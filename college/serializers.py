@@ -233,7 +233,7 @@ class CollegeDetailSerializer(serializers.ModelSerializer):
     university_name = serializers.CharField(source='organization.university.name', read_only=True)
     available_seats = serializers.SerializerMethodField()
     is_registration_open = serializers.SerializerMethodField()
-    logo = serializers.ImageField(required=False, allow_null=True, allow_empty_file=True)
+    logo = serializers.SerializerMethodField()
 
     class Meta:
         model = College
@@ -265,6 +265,15 @@ class CollegeDetailSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.BooleanField())
     def get_is_registration_open(self, obj):
         return obj.is_registration_open
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_logo(self, obj):
+        if obj.logo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.logo.url)
+            return obj.logo.url
+        return None
 
     def create(self, validated_data):
         password = validated_data.pop('password')
