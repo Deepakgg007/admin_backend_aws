@@ -175,17 +175,17 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     "http://z1-admin.haegl.in",
     "http://z1-college.haegl.in",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
     "https://z1-admin.haegl.in",
     "https://z1-college.haegl.in",
     "http://z1-student.haegl.in",
     "https://z1-student.haegl.in",
-    "http://16.16.76.74",
-    "http://16.16.76.74:3000",
-    "http://16.16.76.74:5173",
+    "http://16.171.21.66",
+    "http://16.171.21.66:3000",
+    "http://16.171.21.66:5173",
+    "http://krishik-abiuasd.in",
+    "https://krishik-abiuasd.in",
+    "http://www.krishik-abiuasd.in",
+    "https://www.krishik-abiuasd.in",
 ]
 
 
@@ -196,9 +196,13 @@ CSRF_TRUSTED_ORIGINS = [
     "https://z1-college.haegl.in",
     "http://z1-student.haegl.in",
     "https://z1-student.haegl.in",
-    "http://16.16.76.74",
-    "http://16.16.76.74:3000",
-    "http://16.16.76.74:5173",
+    "http://16.171.21.66",
+    "http://16.171.21.66:3000",
+    "http://16.171.21.66:5173",
+    "http://krishik-abiuasd.in",
+    "https://krishik-abiuasd.in",
+    "http://www.krishik-abiuasd.in",
+    "https://www.krishik-abiuasd.in",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
