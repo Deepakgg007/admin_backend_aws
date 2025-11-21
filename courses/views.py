@@ -457,7 +457,6 @@ class TopicViewSet(viewsets.ModelViewSet, StandardResponseMixin):
     search_fields = ['title', 'description']
     ordering_fields = ['title', 'created_at']
     ordering = ['title']
-    pagination_class = CustomPagination
 
     @extend_schema(tags=['Course Topics'])
 
@@ -631,7 +630,15 @@ class TaskViewSet(viewsets.ModelViewSet, StandardResponseMixin):
         return TaskSerializer
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        # Handle college users - they don't have a User model instance
+        # so we set created_by to None and the task will be tracked by course.college instead
+        user = self.request.user
+        if hasattr(user, 'is_college') and user.is_college:
+            # College user - set created_by to None
+            serializer.save(created_by=None)
+        else:
+            # Regular user - set created_by to the user
+            serializer.save(created_by=user)
 
     # --- CRUD Overrides with Standard Responses ---
     def create(self, request, *args, **kwargs):

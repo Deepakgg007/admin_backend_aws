@@ -25,7 +25,14 @@ class UserSerializer(serializers.ModelSerializer):
                            'approval_status', 'rejection_reason')
 
     def get_college_name_display(self, obj):
-        return obj.get_college_display()
+        # Handle both regular User objects and CollegeUser authentication objects
+        if hasattr(obj, 'get_college_display'):
+            return obj.get_college_display()
+        elif hasattr(obj, 'is_college') and obj.is_college:
+            # CollegeUser - return college name
+            if hasattr(obj, 'college') and obj.college:
+                return obj.college.name
+        return None
 
     def get_college_details(self, obj):
         if obj.college:

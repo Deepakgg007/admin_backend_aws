@@ -151,7 +151,7 @@ class SyllabusSerializer(serializers.ModelSerializer):
 
 class TaskSerializer(serializers.ModelSerializer):
     """Serializer for tasks"""
-    created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
+    created_by_name = serializers.SerializerMethodField()
     creator_type = serializers.SerializerMethodField()
     course_title = serializers.CharField(source='course.title', read_only=True)
     topic_title = serializers.CharField(source='topic.title', read_only=True, allow_null=True)
@@ -169,6 +169,15 @@ class TaskSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'task_id', 'created_by', 'created_at', 'updated_at']
+
+    def get_created_by_name(self, obj):
+        """Get creator name, handling None created_by"""
+        if obj.created_by:
+            return obj.created_by.get_full_name()
+        # For college-created tasks, return college name
+        if obj.course and obj.course.college:
+            return obj.course.college.name
+        return 'System'
 
     @extend_schema_field(serializers.BooleanField())
     def get_is_active(self, obj):
