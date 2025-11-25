@@ -685,6 +685,9 @@ class Enrollment(models.Model):
         # Update status based on progress
         was_completed_before = self.status == 'completed'
 
+        # Update last_accessed timestamp
+        self.last_accessed = timezone.now()
+
         if percentage >= 100:
             self.status = 'completed'
             if not self.completed_at:
@@ -701,7 +704,7 @@ class Enrollment(models.Model):
             if not self.started_at:
                 self.started_at = timezone.now()
 
-        self.save(update_fields=['progress_percentage', 'status', 'completed_at', 'started_at'])
+        self.save(update_fields=['progress_percentage', 'status', 'completed_at', 'started_at', 'last_accessed'])
         return self.progress_percentage
 
 

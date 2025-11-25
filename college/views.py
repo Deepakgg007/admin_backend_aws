@@ -584,6 +584,18 @@ class EnrolledStudentsListView(generics.ListAPIView, StandardResponseMixin):
                 status_code=status.HTTP_401_UNAUTHORIZED
             )
 
+        # Calculate progress for each enrollment before serializing
+        for enrollment in queryset:
+            old_progress = enrollment.progress_percentage
+            enrollment.calculate_progress()
+            new_progress = enrollment.progress_percentage
+
+            # Debug logging
+            import sys
+            print(f"[PROGRESS_DEBUG] Student: {enrollment.student.email}, Course: {enrollment.course.title}, Old: {old_progress}%, New: {new_progress}%", file=sys.stderr)
+
+            enrollment.save(update_fields=['progress_percentage', 'status', 'completed_at'])
+
         # Paginate
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -609,4 +621,60 @@ class EnrolledStudentsListView(generics.ListAPIView, StandardResponseMixin):
         return self.success_response(
             data=serializer.data,
             message="Enrolled students retrieved successfully."
+        )
+
+
+class EngagementStatsView(APIView, StandardResponseMixin):
+    """
+    Get simplified engagement statistics for college dashboard
+    - Active Students: Count of approved students with is_active=1
+    - Enrolled Students: Count of unique students enrolled in at least one course
+    - Inactive Students: Count of approved students with is_active=0
+    """
+    permission_classes = [IsCollegeAuthenticated]
+
+    @extend_schema(
+        tags=['College - Statistics'],
+        summary="Get engagement statistics",
+        description="Get simplified engagement stats: active, enrolled, and inactive student counts"
+    )
+    def get(self, request, *args, **kwargs):
+        """Get simplified engagement statistics"""
+
+        # Get college from authenticated request
+        if not hasattr(request.user, 'college') or request.user.college is None:
+            return self.error_response(
+                message="Authentication required. Please login as college.",
+                status_code=status.HTTP_401_UNAUTHORIZED
+            )
+
+        college = request.user.college
+
+        # 1. Active Students: Approved students with is_active=1
+        active_students = User.objects.filter(
+            college=college,
+            approval_status='approved',
+            is_active=True
+        ).count()
+
+        # 2. Enrolled Students: Unique students with at least one enrollment in college's courses
+        from courses.models import Enrollment
+        enrolled_students = Enrollment.objects.filter(
+            course__college=college
+        ).values('student').distinct().count()
+
+        # 3. Inactive Students: Approved students with is_active=0
+        inactive_students = User.objects.filter(
+            college=college,
+            approval_status='approved',
+            is_active=False
+        ).count()
+
+        return self.success_response(
+            data={
+                'active_students': active_students,
+                'enrolled_students': enrolled_students,
+                'inactive_students': inactive_students,
+            },
+            message="Engagement statistics retrieved successfully."
         )

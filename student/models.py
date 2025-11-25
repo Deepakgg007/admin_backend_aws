@@ -319,15 +319,18 @@ class ContentProgress(models.Model):
             except Course.DoesNotExist:
                 return 0, 0, 0.0
         
-        # Get topics directly by course (since Topic has a course field)
+        # Get tasks BOTH from topics AND directly from course
+        # Tasks can be attached either way
+        from django.db.models import Q
+
+        # Get topics directly by course
         topics = Topic.objects.filter(course=course).distinct()
-        
-        if not topics.exists():
-            return 0, 0, 0.0
-        
-        # Get tasks through topics
-        tasks = Task.objects.filter(topic__in=topics).distinct()
-        
+
+        # Get tasks - either through topics OR directly attached to course
+        tasks = Task.objects.filter(
+            Q(topic__in=topics) | Q(course=course)
+        ).distinct()
+
         if not tasks.exists():
             return 0, 0, 0.0
 

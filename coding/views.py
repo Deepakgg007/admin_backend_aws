@@ -1,3 +1,4 @@
+
 # coding/views.py
 
 from rest_framework import viewsets, status, filters
@@ -26,6 +27,7 @@ from .serializers import (
             OpenApiParameter(name='difficulty', type=str, enum=['EASY', 'MEDIUM', 'HARD']),
             OpenApiParameter(name='category', type=str),
             OpenApiParameter(name='search', type=str, description='Search in title, description, tags'),
+            OpenApiParameter(name='attempt_status', type=str, enum=['not_attempted', 'attempted', 'solved'], description='Filter by user attempt status'),
         ]
     ),
     retrieve=extend_schema(
@@ -71,54 +73,49 @@ class ChallengeViewSet(viewsets.ModelViewSet):
         return [IsAuthenticatedOrReadOnly()]
 
     def list(self, request, *args, **kwargs):
-        """Override list to add user submission status"""
-        response = super().list(request, *args, **kwargs)
+        """Override list to add attempt status filtering"""
+        # Get attempt_status filter parameter
+        attempt_status = request.query_params.get('attempt_status', '')
 
-        # Add submission status for authenticated users
-        if request.user.is_authenticated:
+        if attempt_status and request.user.is_authenticated:
             from student.models import CodingChallengeSubmission
-            from django.db.models import Max
 
-            # Get challenges from response
-            challenges = response.data.get('results', response.data)
-            if not isinstance(challenges, list):
-                return response
+            queryset = self.get_queryset()
 
-            # Get user's latest submission for each challenge
-            challenge_ids = [c['id'] for c in challenges if 'id' in c]
+            if attempt_status == 'not_attempted':
+                # Get challenges the user hasn't attempted
+                attempted_challenges = CodingChallengeSubmission.objects.filter(
+                    user=request.user
+                ).values_list('challenge_id', flat=True)
+                queryset = queryset.exclude(id__in=attempted_challenges)
 
-            # Get latest submission_at for each challenge
-            latest_submissions = CodingChallengeSubmission.objects.filter(
-                user=request.user,
-                challenge_id__in=challenge_ids
-            ).values('challenge_id').annotate(
-                latest_submitted_at=Max('submitted_at')
-            )
-
-            # Get the actual submission data for those latest submissions
-            submission_map = {}
-            for item in latest_submissions:
-                challenge_id = item['challenge_id']
-                latest_sub = CodingChallengeSubmission.objects.filter(
+            elif attempt_status == 'attempted':
+                # Get challenges the user has attempted but not solved
+                solved_challenges = CodingChallengeSubmission.objects.filter(
                     user=request.user,
-                    challenge_id=challenge_id,
-                    submitted_at=item['latest_submitted_at']
-                ).values('status', 'score').first()
+                    status='ACCEPTED'
+                ).values_list('challenge_id', flat=True)
 
-                if latest_sub:
-                    submission_map[challenge_id] = latest_sub
+                attempted_challenges = CodingChallengeSubmission.objects.filter(
+                    user=request.user
+                ).values_list('challenge_id', flat=True)
 
-            # Add submission status to each challenge
-            for challenge in challenges:
-                challenge_id = challenge.get('id')
-                if challenge_id in submission_map:
-                    sub = submission_map[challenge_id]
-                    challenge['submission_status'] = sub['status']
-                    challenge['submission_score'] = sub['score']
-                else:
-                    challenge['submission_status'] = None
-                    challenge['submission_score'] = 0
+                queryset = queryset.filter(
+                    id__in=attempted_challenges
+                ).exclude(id__in=solved_challenges)
 
+            elif attempt_status == 'solved':
+                # Get challenges the user has solved
+                solved_challenges = CodingChallengeSubmission.objects.filter(
+                    user=request.user,
+                    status='ACCEPTED'
+                ).values_list('challenge_id', flat=True)
+                queryset = queryset.filter(id__in=solved_challenges)
+
+            # Update the queryset for this request
+            self.queryset = queryset
+
+        response = super().list(request, *args, **kwargs)
         return response
 
     @extend_schema(

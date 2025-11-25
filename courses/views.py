@@ -28,8 +28,8 @@ class CourseViewSet(viewsets.ModelViewSet, StandardResponseMixin):
     permission_classes = [IsStaffOrReadOnly]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['course_id', 'title', 'description']
-    ordering_fields = ['title', 'created_at', 'difficulty_level']
-    ordering = ['-created_at']
+    ordering_fields = ['title', 'created_at', 'updated_at', 'difficulty_level']
+    ordering = ['updated_at']
     pagination_class = CustomPagination
     lookup_field = 'id'
 
@@ -145,6 +145,23 @@ class CourseViewSet(viewsets.ModelViewSet, StandardResponseMixin):
         return self.success_response(
             data=serializer.data,
             message="Course retrieved successfully."
+        )
+
+    @action(detail=False, methods=['get'])
+    def course_statistics(self, request):
+        """Get course statistics: Z1 Education and College Admin course counts"""
+        # Count Z1 system courses (where college is NULL)
+        z1_courses_count = Course.objects.filter(college__isnull=True).count()
+
+        # Count college courses (where college is NOT NULL)
+        college_courses_count = Course.objects.filter(college__isnull=False).count()
+
+        return self.success_response(
+            data={
+                'z1_education_count': z1_courses_count,
+                'college_admin_count': college_courses_count,
+            },
+            message="Course statistics retrieved successfully."
         )
 
     def list(self, request, *args, **kwargs):
@@ -822,7 +839,13 @@ class EnrollmentViewSet(viewsets.ModelViewSet, StandardResponseMixin):
 
         course_id = self.request.query_params.get('course')
         if course_id:
-            queryset = queryset.filter(course_id=course_id)
+            try:
+                # Convert course_id to integer since query params come as strings
+                course_id_int = int(course_id)
+                queryset = queryset.filter(course_id=course_id_int)
+            except (ValueError, TypeError):
+                # If course_id is not a valid integer, filter fails silently
+                pass
 
         enrollment_status = self.request.query_params.get('status')
         if enrollment_status:

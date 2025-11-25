@@ -66,13 +66,19 @@ class UserProfile(models.Model):
     def __str__(self):
         return f"{self.user.username}'s Profile"
     
-    def update_streak(self):
-        """Update the user's submission streak"""
+    def update_streak(self, save=True):
+        """
+        Update the user's submission streak.
+
+        Args:
+            save (bool): Whether to save the profile after updating streak.
+                        Set to False when calling from signal handlers that do their own save.
+        """
         today = timezone.now().date()
-        
+
         if self.last_activity:
             days_diff = (today - self.last_activity).days
-            
+
             if days_diff == 0:
                 # Same day, no change to streak
                 pass
@@ -82,14 +88,16 @@ class UserProfile(models.Model):
                 if self.current_streak > self.longest_streak:
                     self.longest_streak = self.current_streak
             else:
-                # Streak broken, reset
+                # Streak broken, reset to 1
                 self.current_streak = 1
         else:
             # First activity
             self.current_streak = 1
-        
+
         self.last_activity = today
-        self.save()
+
+        if save:
+            self.save()
     
     def calculate_accuracy(self):
         """Calculate submission success rate"""

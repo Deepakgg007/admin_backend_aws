@@ -86,13 +86,17 @@ class UserBasicSerializer(serializers.ModelSerializer):
     college_name = serializers.SerializerMethodField()
     college_logo = serializers.SerializerMethodField()
     profile_picture = serializers.SerializerMethodField()
+    college_id = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
-            'profile_picture', 'college_name', 'college_logo', 'usn'
+            'profile_picture', 'college_name', 'college_logo', 'college_id', 'usn'
         ]
+
+    def get_college_id(self, obj):
+        return obj.college_id if obj.college_id else None
 
     def get_college_name(self, obj):
         return obj.get_college_display()
@@ -157,13 +161,15 @@ class UserProfileStatsSerializer(serializers.ModelSerializer):
 class LeaderboardEntrySerializer(serializers.ModelSerializer):
     """Serializer for leaderboard entries"""
     username = serializers.CharField(source='user.username', read_only=True)
+    first_name = serializers.CharField(source='user.first_name', read_only=True)
+    last_name = serializers.CharField(source='user.last_name', read_only=True)
     profile_picture = serializers.SerializerMethodField()
     college_name = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = UserProfile
         fields = [
-            'user', 'username', 'profile_picture', 'college_name',
+            'user', 'username', 'first_name', 'last_name', 'profile_picture', 'college_name',
             'total_points', 'global_rank', 'college_rank',
             'challenges_solved', 'easy_solved', 'medium_solved', 'hard_solved',
             'current_streak'

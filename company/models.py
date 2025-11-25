@@ -329,13 +329,16 @@ class Job(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.slug:
+            import uuid
+
+            # Generate base slug from company and title
             base_slug = slugify(f"{self.company.name}-{self.title}")
-            slug = base_slug
-            counter = 1
-            while Job.objects.filter(slug=slug).exists():
-                slug = f"{base_slug}-{counter}"
-                counter += 1
-            self.slug = slug
+
+            # Use UUID for guaranteed uniqueness - NO database queries needed
+            # This completely eliminates database lock issues
+            unique_suffix = str(uuid.uuid4())[:8]
+            self.slug = f"{base_slug}-{unique_suffix}"
+
         super().save(*args, **kwargs)
 
     def __str__(self):
