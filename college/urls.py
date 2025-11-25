@@ -12,7 +12,8 @@ from .views import (
     CollegeForgotPasswordRequestView,
     CollegeVerifyOTPView,
     CollegeResetPasswordView,
-    EnrolledStudentsListView
+    EnrolledStudentsListView,
+    EngagementStatsView
 )
 
 app_name = 'college'
@@ -34,4 +35,7 @@ urlpatterns = [
 
     # Enrolled Students Management
     path('students/enrolled/', EnrolledStudentsListView.as_view(), name='enrolled-students'),
+
+    # Engagement Statistics
+    path('engagement-stats/', EngagementStatsView.as_view(), name='engagement-stats'),
 ]

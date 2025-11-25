@@ -7,34 +7,82 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import Paragraph
 from reportlab.lib.enums import TA_CENTER
 from django.utils import timezone
+from django.conf import settings
+import os
+import requests
 
 
 def generate_certificate_pdf(attempt):
     """
     Generate a professional certificate PDF for a passed certification attempt
-    
+    with Z1 Logo (left) and College Logo (right)
+
     Args:
         attempt: CertificationAttempt instance
-    
+
     Returns:
         BytesIO buffer containing the PDF
     """
     buffer = BytesIO()
-    
+
     # Create PDF with A4 landscape orientation
     p = canvas.Canvas(buffer, pagesize=(A4[1], A4[0]))  # Landscape
     width, height = A4[1], A4[0]
-    
+
     # Draw border
     p.setStrokeColor(colors.HexColor("#1e40af"))  # Blue border
     p.setLineWidth(3)
     p.rect(30, 30, width - 60, height - 60, stroke=1, fill=0)
-    
+
     # Inner decorative border
     p.setStrokeColor(colors.HexColor("#3b82f6"))
     p.setLineWidth(1)
     p.rect(40, 40, width - 80, height - 80, stroke=1, fill=0)
-    
+
+    # Add Z1 Logo (Left side)
+    try:
+        z1_logo_path = os.path.join(settings.BASE_DIR, 'z1logo.png')
+        if os.path.exists(z1_logo_path):
+            p.drawImage(z1_logo_path, 60, height - 140, width=80, height=80)
+    except Exception as e:
+        print(f"Error loading Z1 logo: {e}")
+
+    # Add College Logo (Right side) if available
+    college_logo_path = None
+    if hasattr(attempt.certification.course, 'college') and attempt.certification.course.college:
+        college = attempt.certification.course.college
+        if hasattr(college, 'logo') and college.logo:
+            try:
+                # Try to get file path first
+                if hasattr(college.logo, 'path') and college.logo.path:
+                    college_logo_path = college.logo.path
+                    if not os.path.exists(college_logo_path):
+                        college_logo_path = None
+
+                # If no file path, try to get URL
+                if not college_logo_path and hasattr(college.logo, 'url'):
+                    college_logo_url = college.logo.url
+                    if college_logo_url:
+                        try:
+                            # For relative URLs, construct full URL
+                            if college_logo_url.startswith('/'):
+                                college_logo_url = f"{settings.ALLOWED_HOSTS[0] if hasattr(settings, 'ALLOWED_HOSTS') and settings.ALLOWED_HOSTS else 'http://localhost:8000'}{college_logo_url}"
+
+                            # Download the image to temp BytesIO
+                            response = requests.get(college_logo_url, timeout=5)
+                            if response.status_code == 200:
+                                college_logo_path = BytesIO(response.content)
+                        except Exception as e:
+                            print(f"Error downloading college logo from URL: {e}")
+            except Exception as e:
+                print(f"Error getting college logo: {e}")
+
+    if college_logo_path:
+        try:
+            p.drawImage(college_logo_path, width - 140, height - 140, width=80, height=80)
+        except Exception as e:
+            print(f"Error loading college logo: {e}")
+
     # Title
     p.setFont("Helvetica-Bold", 36)
     p.setFillColor(colors.HexColor("#1e40af"))

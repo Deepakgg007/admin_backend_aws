@@ -217,77 +217,180 @@ class LeaderboardView(generics.ListAPIView):
     permission_classes = [AllowAny]
     
     def get_queryset(self):
+        # Show only students (exclude staff/admins), ordered by points/activity
         queryset = UserProfile.objects.select_related('user').filter(
-            challenges_solved__gt=0
-        ).order_by('-total_points', 'user__username')
-        
+            user__is_staff=False
+        ).order_by('-total_points', '-challenges_solved', 'user__username')
+
         # Filter by type
         leaderboard_type = self.request.query_params.get('type', 'global')
-        
+
         if leaderboard_type == 'college':
             college_id = self.request.query_params.get('college_id')
             if college_id:
                 queryset = queryset.filter(user__college_id=college_id)
-        
+
         # Limit results
         limit = int(self.request.query_params.get('limit', 100))
         queryset = queryset[:limit]
-        
+
         # Add rank annotation
         for idx, profile in enumerate(queryset, 1):
             profile.rank = idx
-        
+
         return queryset
     
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
-        
+
         # Add user's position if authenticated
         user_position = None
         if request.user.is_authenticated:
             try:
                 user_profile = UserProfile.objects.get(user=request.user)
+                # Calculate actual rank based on points and challenges solved (only students)
+                rank = UserProfile.objects.filter(
+                    user__is_staff=False
+                ).filter(
+                    Q(total_points__gt=user_profile.total_points) |
+                    (Q(total_points=user_profile.total_points) & Q(challenges_solved__gt=user_profile.challenges_solved))
+                ).count() + 1
+
                 user_position = {
-                    'rank': user_profile.global_rank or 0,
+                    'rank': rank,
                     'total_points': user_profile.total_points,
-                    'challenges_solved': user_profile.challenges_solved
+                    'challenges_solved': user_profile.challenges_solved,
+                    'user_id': request.user.id
                 }
             except UserProfile.DoesNotExist:
                 pass
-        
+
+        # Count only students (non-staff users)
+        total_students = UserProfile.objects.filter(user__is_staff=False).count()
+
         return Response({
             'leaderboard': serializer.data,
             'user_position': user_position,
-            'total_users': UserProfile.objects.filter(challenges_solved__gt=0).count()
+            'total_users': total_students
         })
 
 
 class GlobalLeaderboardView(generics.ListAPIView):
-    """Global leaderboard - top performers"""
+    """Global leaderboard - all students (excluding admins) ordered by points"""
     serializer_class = LeaderboardEntrySerializer
     permission_classes = [AllowAny]
-    
+
     def get_queryset(self):
         limit = int(self.request.query_params.get('limit', 100))
-        return UserProfile.objects.select_related('user').filter(
-            challenges_solved__gt=0
-        ).order_by('-total_points')[:limit]
+        # Only show students, exclude staff/admins
+        queryset = UserProfile.objects.select_related('user').filter(
+            user__is_staff=False
+        ).order_by('-total_points', '-challenges_solved')[:limit]
+        # Add rank annotation
+        queryset = list(queryset)
+        for idx, profile in enumerate(queryset, 1):
+            profile.rank = idx
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+
+        # Add user's position if authenticated
+        user_position = None
+        if request.user.is_authenticated:
+            try:
+                user_profile = UserProfile.objects.get(user=request.user)
+                # Calculate actual rank based on points and challenges solved (only students)
+                rank = UserProfile.objects.filter(
+                    user__is_staff=False
+                ).filter(
+                    Q(total_points__gt=user_profile.total_points) |
+                    (Q(total_points=user_profile.total_points) & Q(challenges_solved__gt=user_profile.challenges_solved))
+                ).count() + 1
+
+                user_position = {
+                    'rank': rank,
+                    'total_points': user_profile.total_points,
+                    'challenges_solved': user_profile.challenges_solved,
+                    'user_id': request.user.id
+                }
+            except UserProfile.DoesNotExist:
+                pass
+
+        # Count only students (non-staff users)
+        total_students = UserProfile.objects.filter(user__is_staff=False).count()
+
+        return Response({
+            'leaderboard': serializer.data,
+            'user_position': user_position,
+            'total_users': total_students
+        })
 
 
 class CollegeLeaderboardView(generics.ListAPIView):
-    """College-specific leaderboard"""
+    """College-specific leaderboard - students from college (excluding admins) ordered by points"""
     serializer_class = LeaderboardEntrySerializer
     permission_classes = [AllowAny]
-    
+
     def get_queryset(self):
         college_id = self.kwargs.get('college_id')
         limit = int(self.request.query_params.get('limit', 100))
-        
-        return UserProfile.objects.select_related('user').filter(
+
+        # Only show students from college, exclude staff/admins
+        queryset = UserProfile.objects.select_related('user').filter(
             user__college_id=college_id,
-            challenges_solved__gt=0
-        ).order_by('-total_points')[:limit]
+            user__is_staff=False
+        ).order_by('-total_points', '-challenges_solved')
+
+        # Add rank annotation
+        queryset = list(queryset[:limit])
+        for idx, profile in enumerate(queryset, 1):
+            profile.rank = idx
+
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+
+        college_id = self.kwargs.get('college_id')
+
+        # Add user's position if authenticated
+        user_position = None
+        if request.user.is_authenticated:
+            try:
+                user_profile = UserProfile.objects.get(user=request.user)
+                # Calculate rank within college (only students)
+                college_rank = UserProfile.objects.filter(
+                    user__college_id=college_id,
+                    user__is_staff=False
+                ).filter(
+                    Q(total_points__gt=user_profile.total_points) |
+                    (Q(total_points=user_profile.total_points) & Q(challenges_solved__gt=user_profile.challenges_solved))
+                ).count() + 1
+
+                user_position = {
+                    'rank': college_rank,
+                    'total_points': user_profile.total_points,
+                    'challenges_solved': user_profile.challenges_solved,
+                    'user_id': request.user.id
+                }
+            except UserProfile.DoesNotExist:
+                pass
+
+        # Count only students in the college (non-staff users)
+        total_college_students = UserProfile.objects.filter(
+            user__college_id=college_id,
+            user__is_staff=False
+        ).count()
+
+        return Response({
+            'leaderboard': serializer.data,
+            'user_position': user_position,
+            'total_users': total_college_students
+        })
 
 
 class BadgeListView(generics.ListAPIView):

@@ -482,46 +482,50 @@ class JobViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """
         Automatically assign company validation and set added_by
+        Optimized to avoid database locks with single atomic transaction
         """
-        # First, try to get college from JWT token
+        from django.db import transaction
+        from rest_framework.exceptions import PermissionDenied
         from college.views import get_college_id_from_token
-        college_id = get_college_id_from_token(self.request)
+        from api.models import College
 
         company_id = self.request.data.get('company')
 
-        if college_id:
-            # College admin authenticated via college login
-            from api.models import College
-            try:
-                college = College.objects.get(college_id=college_id)
-                # Validate company belongs to this college
-                company = Company.objects.get(id=company_id, college=college)
-                print(f"COLLEGE LOGIN: Adding job for company: {company.name}")
-                serializer.save(added_by=None)  # College login doesn't have User object
-                return
-            except (College.DoesNotExist, Company.DoesNotExist):
-                from rest_framework.exceptions import PermissionDenied
-                raise PermissionDenied("You can only add jobs for companies from your college")
+        # Wrap everything in a single atomic transaction
+        with transaction.atomic():
+            college_id = get_college_id_from_token(self.request)
 
-        # Fallback to user-based logic
-        user = self.request.user
-
-        if user.is_authenticated:
-            # If college staff, validate company belongs to their college
-            if user.is_staff and hasattr(user, 'college') and user.college and not user.is_superuser:
+            if college_id:
+                # College admin authenticated via college login
                 try:
-                    company = Company.objects.get(id=company_id, college=user.college)
-                    print(f"USER-BASED: Adding job for company: {company.name}")
+                    college = College.objects.select_related('organization').get(college_id=college_id)
+                    # Use exists() instead of get() to avoid locking
+                    if not Company.objects.filter(id=company_id, college=college).exists():
+                        raise PermissionDenied("You can only add jobs for companies from your college")
+
+                    print(f"COLLEGE LOGIN: Adding job for company ID: {company_id}")
+                    serializer.save(added_by=None)
+                    return
+                except College.DoesNotExist:
+                    raise PermissionDenied("College not found")
+
+            # Fallback to user-based logic
+            user = self.request.user
+
+            if user.is_authenticated:
+                # If college staff, validate company belongs to their college
+                if user.is_staff and hasattr(user, 'college') and user.college and not user.is_superuser:
+                    if not Company.objects.filter(id=company_id, college=user.college).exists():
+                        raise PermissionDenied("You can only add jobs for companies from your college")
+
+                    print(f"USER-BASED: Adding job for company ID: {company_id}")
                     serializer.save(added_by=user)
-                except Company.DoesNotExist:
-                    from rest_framework.exceptions import PermissionDenied
-                    raise PermissionDenied("You can only add jobs for companies from your college")
-            # Admin/Superuser can add jobs for any company
+                # Admin/Superuser can add jobs for any company
+                else:
+                    print(f"ADMIN/SUPERUSER: Adding job")
+                    serializer.save(added_by=user)
             else:
-                print(f"ADMIN/SUPERUSER: Adding job")
-                serializer.save(added_by=user)
-        else:
-            serializer.save()
+                serializer.save()
 
     @extend_schema(
         summary="Get jobs for my college's companies",

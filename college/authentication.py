@@ -39,6 +39,9 @@ class CollegeJWTAuthentication(JWTAuthentication):
                     self._pk = college.id
                     self.is_active = college.is_active
                     self.email = college.email
+                    self.username = college.email  # Use email as username
+                    self.first_name = college.name.split()[0] if college.name else ''
+                    self.last_name = ' '.join(college.name.split()[1:]) if college.name and len(college.name.split()) > 1 else ''
                     self.college_id = college.college_id
                     self.college = college
                     self.is_staff = False

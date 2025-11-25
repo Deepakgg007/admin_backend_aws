@@ -1,3 +1,4 @@
+
 # coding/serializers.py
 
 from rest_framework import serializers
@@ -63,6 +64,9 @@ class ChallengeListSerializer(serializers.ModelSerializer):
     difficulty_display = serializers.CharField(source='get_difficulty_display', read_only=True)
     category_display = serializers.CharField(source='get_category_display', read_only=True)
     tags_list = serializers.SerializerMethodField()
+    is_solved = serializers.SerializerMethodField()
+    is_attempted = serializers.SerializerMethodField()
+    failed = serializers.SerializerMethodField()
 
     class Meta:
         model = Challenge
@@ -70,13 +74,58 @@ class ChallengeListSerializer(serializers.ModelSerializer):
             'id', 'title', 'slug', 'difficulty', 'difficulty_display',
             'category', 'category_display', 'max_score', 'success_rate',
             'total_submissions', 'accepted_submissions', 'tags_list',
+            'is_solved', 'is_attempted', 'failed',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'slug', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'slug', 'created_at', 'updated_at', 'is_solved', 'is_attempted', 'failed']
 
     @extend_schema_field(serializers.ListField(child=serializers.CharField()))
     def get_tags_list(self, obj):
         return obj.get_tags_list()
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_is_solved(self, obj):
+        """Check if challenge is solved by the authenticated user"""
+        request = self.context.get('request')
+        if not request or not request.user or not request.user.is_authenticated:
+            return False
+
+        # Check if user has accepted submission for this challenge
+        return obj.coding_submissions.filter(
+            user=request.user,
+            status='ACCEPTED'
+        ).exists()
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_is_attempted(self, obj):
+        """Check if challenge is attempted by the authenticated user"""
+        request = self.context.get('request')
+        if not request or not request.user or not request.user.is_authenticated:
+            return False
+
+        # Check if user has any submission (attempted) for this challenge
+        return obj.coding_submissions.filter(
+            user=request.user
+        ).exists()
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_failed(self, obj):
+        """Check if user has failed attempts (attempted but not solved)"""
+        request = self.context.get('request')
+        if not request or not request.user or not request.user.is_authenticated:
+            return False
+
+        # User has failed if they attempted but don't have accepted submission
+        has_attempt = obj.coding_submissions.filter(
+            user=request.user
+        ).exists()
+
+        has_accepted = obj.coding_submissions.filter(
+            user=request.user,
+            status='ACCEPTED'
+        ).exists()
+
+        return has_attempt and not has_accepted
 
 
 class ChallengeDetailSerializer(serializers.ModelSerializer):

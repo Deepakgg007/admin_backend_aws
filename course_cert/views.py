@@ -13,7 +13,6 @@ from .permissions import IsSuperUserOrStaff
 from .models import (
     Certification,
     CertificationQuestion,
-    CertificationOption,
     CertificationAttempt,
     AttemptAnswer
 )
@@ -22,7 +21,6 @@ from .serializers import (
     CertificationPublicSerializer,
     CertificationQuestionSerializer,
     CertificationQuestionPublicSerializer,
-    CertificationOptionSerializer,
     CertificationAttemptSerializer,
     AttemptAnswerSerializer
 )
@@ -51,7 +49,7 @@ class CertificationAdminViewSet(viewsets.ModelViewSet, StandardResponseMixin):
         attempts = CertificationAttempt.objects.filter(
             certification=cert
         ).select_related("user")
-        
+
         data = [{
             "id": a.id,
             "user": a.user.username,
@@ -61,8 +59,48 @@ class CertificationAdminViewSet(viewsets.ModelViewSet, StandardResponseMixin):
             "started_at": a.started_at,
             "completed_at": a.completed_at,
         } for a in attempts]
-        
+
         return Response(data)
+
+    @action(detail=True, methods=["get"])
+    def download_pdf(self, request, pk=None):
+        """
+        Download certificate as PDF with Z1 logo and college logo
+        This endpoint generates a PDF using the backend PDF generation utility
+        """
+        cert = self.get_object()
+
+        # Create a mock attempt object for PDF generation
+        # In a real scenario, you might want to get an actual passed attempt
+        try:
+            # Try to get the first passed attempt for this certification
+            attempt = CertificationAttempt.objects.filter(
+                certification=cert,
+                passed=True
+            ).first()
+
+            if not attempt:
+                # If no passed attempt, create a mock one for preview
+                attempt = cert.attempts.first()
+                if not attempt:
+                    return Response(
+                        {"error": "No attempts found for this certification"},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+
+            # Generate PDF using the utility function
+            pdf_buffer = generate_certificate_pdf(attempt)
+
+            # Return as file response
+            response = HttpResponse(pdf_buffer, content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="{cert.title}-Certificate.pdf"'
+            return response
+
+        except Exception as e:
+            return Response(
+                {"error": f"Error generating certificate PDF: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class CertificationQuestionAdminViewSet(viewsets.ModelViewSet, StandardResponseMixin):
