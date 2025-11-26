@@ -334,6 +334,58 @@ def get_quick_actions(user_id: int) -> list:
 
 
 ###############################################################################
+# STUDENT SUBMISSION STATS (For College Admin Dashboard)
+###############################################################################
+def get_student_submission_stats(user_id: int) -> dict:
+    """
+    Get submission stats for a specific student
+    Used by college admins to view student performance
+    """
+    from student.models import CodingChallengeSubmission, CompanyChallengeSubmission
+
+    # Get coding challenge submissions
+    coding_submissions = CodingChallengeSubmission.objects.filter(user_id=user_id)
+    coding_attempted = coding_submissions.values('challenge_id').distinct().count()
+    coding_solved = coding_submissions.filter(status='ACCEPTED', is_best_submission=True).count()
+    coding_failed = coding_submissions.filter(
+        status__in=['REJECTED', 'FAILED'],
+        is_best_submission=True
+    ).count()
+    coding_success_rate = round(
+        (coding_solved / coding_attempted * 100) if coding_attempted > 0 else 0,
+        2
+    )
+
+    # Get company challenge submissions
+    company_submissions = CompanyChallengeSubmission.objects.filter(user_id=user_id)
+    company_attempted = company_submissions.values('challenge_id').distinct().count()
+    company_solved = company_submissions.filter(status='ACCEPTED', is_best_submission=True).count()
+    company_failed = company_submissions.filter(
+        status__in=['REJECTED', 'FAILED'],
+        is_best_submission=True
+    ).count()
+    company_success_rate = round(
+        (company_solved / company_attempted * 100) if company_attempted > 0 else 0,
+        2
+    )
+
+    return {
+        "coding_challenges": {
+            "attempted": coding_attempted,
+            "solved": coding_solved,
+            "failed": coding_failed,
+            "success_rate": coding_success_rate,
+        },
+        "company_challenges": {
+            "attempted": company_attempted,
+            "solved": company_solved,
+            "failed": company_failed,
+            "success_rate": company_success_rate,
+        }
+    }
+
+
+###############################################################################
 # ENTRYPOINT (MAIN DASHBOARD)
 ###############################################################################
 def get_student_dashboard(user_id: int) -> dict:

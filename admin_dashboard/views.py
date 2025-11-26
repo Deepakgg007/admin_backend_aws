@@ -5,7 +5,7 @@ from rest_framework import status
 from api.permissions import IsSuperUserOnly
 from api.utils import StandardResponseMixin
 from .services import get_dashboard_data, get_completion_report, get_students_report
-from .services_student import get_student_dashboard
+from .services_student import get_student_dashboard, get_student_submission_stats
 
 
 class AdminDashboardAnalyticsView(APIView, StandardResponseMixin):
@@ -127,6 +127,40 @@ class StudentsReportView(APIView, StandardResponseMixin):
         return self.success_response(
             data=data,
             message="Students report retrieved successfully."
+        )
+
+
+class StudentSubmissionStatsView(APIView, StandardResponseMixin):
+    """Get submission stats for a specific student - College admin only"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, student_id):
+        # Check if user has permission to view this student's data
+        # College admins can only view students from their college
+        from authentication.models import CustomUser
+
+        try:
+            student = CustomUser.objects.get(id=student_id)
+        except CustomUser.DoesNotExist:
+            return self.error_response(
+                message="Student not found.",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+
+        # If college admin, check if student is from their college
+        if request.user.is_staff and not request.user.is_superuser:
+            if student.college_id != request.user.college_id:
+                return self.error_response(
+                    message="You don't have permission to view this student's data.",
+                    status_code=status.HTTP_403_FORBIDDEN
+                )
+
+        # Get submission stats
+        submission_stats = get_student_submission_stats(student_id)
+
+        return self.success_response(
+            data=submission_stats,
+            message="Student submission stats retrieved successfully."
         )
 
 
