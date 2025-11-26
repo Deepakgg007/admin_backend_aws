@@ -1,2 +1,4 @@
+hit
+cog
 6
-16 17 4 3 5 2
+hot dot dog lot log cog
