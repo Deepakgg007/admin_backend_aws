@@ -9,16 +9,24 @@ from student.user_profile_models import UserProfile
 from course_cert.models import Certification, CertificationAttempt
 
 
-def get_dashboard_data():
+def get_dashboard_data(college_id=None):
     """
     Enhanced dashboard summary with:
     - Core counts
     - Certification analytics
     - Challenge trends
     - Engagement metrics
+    - Optional college filtering for top students and cert students
     """
     # --- User/Student counts ---
     students_qs = CustomUser.objects.filter(is_staff=False, is_superuser=False)
+
+    # Filter by college if provided (for top students filtering)
+    if college_id:
+        students_filtered_by_college = students_qs.filter(college_id=college_id)
+    else:
+        students_filtered_by_college = students_qs
+
     total_students = students_qs.count()
 
     approval_counts = (
@@ -98,12 +106,14 @@ def get_dashboard_data():
         2
     )
 
-    # Top scorers
-    top_cert_students = (
-        CertificationAttempt.objects.select_related('user', 'certification')
-        .filter(score__isnull=False)
-        .order_by('-score')[:10]
-    )
+    # Top scorers - filter by college if provided
+    top_cert_students_qs = CertificationAttempt.objects.select_related('user', 'certification').filter(score__isnull=False)
+
+    if college_id:
+        top_cert_students_qs = top_cert_students_qs.filter(user__college_id=college_id)
+
+    top_cert_students = top_cert_students_qs.order_by('-score')[:10]
+
     top_cert_list = [
         {
             "username": att.user.username,
@@ -117,9 +127,13 @@ def get_dashboard_data():
     week_ago = timezone.now() - timezone.timedelta(days=7)
     active_users = CustomUser.objects.filter(last_login__gte=week_ago).count()
 
-    # --- Top Coding Students ---
-    top_profiles = UserProfile.objects.select_related('user') \
-        .order_by('-total_points', '-challenges_solved')[:10]
+    # --- Top Coding Students - filter by college if provided ---
+    top_profiles_qs = UserProfile.objects.select_related('user')
+
+    if college_id:
+        top_profiles_qs = top_profiles_qs.filter(user__college_id=college_id)
+
+    top_profiles = top_profiles_qs.order_by('-total_points', '-challenges_solved')[:10]
 
     top_students = [
         {

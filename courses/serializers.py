@@ -161,10 +161,10 @@ class TaskSerializer(serializers.ModelSerializer):
         model = Task
         fields = [
             'id', 'task_id', 'course', 'course_title', 'topic', 'topic_title',
-            'title', 'description', 'task_type', 'status', 'instructions',
-            'start_date', 'due_date', 'duration_minutes',
-            'max_score', 'passing_score',
-            'allow_late_submission', 'is_mandatory', 'order',
+            'title', 'status', 'instructions',
+            'start_date', 'due_date',
+            'passing_score',
+            'allow_late_submission', 'order',
             'created_by', 'created_by_name', 'creator_type', 'is_active',
             'created_at', 'updated_at'
         ]
@@ -775,9 +775,9 @@ class TaskDetailSerializer(serializers.ModelSerializer):
         model = Task
         fields = [
             'id', 'task_id', 'course', 'course_title', 'topic', 'topic_title',
-            'title', 'description', 'status', 'instructions',
-            'start_date', 'due_date', 'max_score', 'passing_score',
-            'allow_late_submission', 'is_mandatory', 'order',
+            'title', 'status', 'instructions',
+            'start_date', 'due_date', 'passing_score',
+            'allow_late_submission', 'order',
             'created_by', 'created_by_name', 'is_active',
             'documents', 'videos', 'questions', 'richtext_pages',
             'created_at', 'updated_at'

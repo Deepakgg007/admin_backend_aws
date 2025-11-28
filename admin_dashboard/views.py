@@ -12,7 +12,16 @@ class AdminDashboardAnalyticsView(APIView, StandardResponseMixin):
     permission_classes = [IsSuperUserOnly]
 
     def get(self, request):
-        data = get_dashboard_data()
+        college_id = request.query_params.get('college')
+
+        # Convert to int if provided
+        if college_id:
+            try:
+                college_id = int(college_id)
+            except (ValueError, TypeError):
+                college_id = None
+
+        data = get_dashboard_data(college_id=college_id)
         return self.success_response(
             data=data,
             message="Analytics data retrieved successfully."

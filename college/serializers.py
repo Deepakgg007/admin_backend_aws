@@ -303,6 +303,7 @@ class EnrolledStudentSerializer(serializers.Serializer):
     student_email = serializers.EmailField(source='student.email')
     student_usn = serializers.CharField(source='student.usn', allow_null=True)
     student_phone = serializers.CharField(source='student.phone_number', allow_null=True)
+    student_profile_picture = serializers.SerializerMethodField()
 
     course_id = serializers.IntegerField(source='course.id')
     course_title = serializers.CharField(source='course.title')
@@ -321,3 +322,14 @@ class EnrolledStudentSerializer(serializers.Serializer):
         """Get full name of student"""
         student = obj.student
         return f"{student.first_name} {student.last_name}".strip() or student.username
+
+    @extend_schema_field(serializers.CharField())
+    def get_student_profile_picture(self, obj):
+        """Get profile picture URL for student"""
+        student = obj.student
+        if student.profile_picture:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(student.profile_picture.url)
+            return student.profile_picture.url
+        return None

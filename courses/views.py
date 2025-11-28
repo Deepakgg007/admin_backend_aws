@@ -620,10 +620,6 @@ class TaskViewSet(viewsets.ModelViewSet, StandardResponseMixin):
                 return queryset.none()
 
         # Other filters (safe)
-        task_type = query_params.get('task_type')
-        if task_type:
-            queryset = queryset.filter(task_type=task_type)
-
         task_status = query_params.get('status')
         if task_status:
             queryset = queryset.filter(status=task_status)

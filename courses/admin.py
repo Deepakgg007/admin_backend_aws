@@ -90,9 +90,9 @@ class TopicAdmin(admin.ModelAdmin):
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
-    list_display = ['title', 'course', 'task_type', 'status', 'due_date', 'max_score', 'is_mandatory', 'created_at']
-    list_filter = ['task_type', 'status', 'is_mandatory', 'created_at']
-    search_fields = ['title', 'course__title', 'description']
+    list_display = ['title', 'course', 'topic', 'status', 'due_date', 'created_at']
+    list_filter = ['status', 'created_at']
+    search_fields = ['title', 'course__title', 'topic__title']
     readonly_fields = ['task_id', 'created_at', 'updated_at']
     ordering = ['course', 'order']
 

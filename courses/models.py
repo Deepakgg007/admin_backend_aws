@@ -145,14 +145,6 @@ class Topic(models.Model):
 
 class Task(models.Model):
     """Tasks/assignments associated with topics or courses"""
-    TASK_TYPE_CHOICES = [
-        ('assignment', 'Assignment'),
-        ('quiz', 'Quiz'),
-        ('project', 'Project'),
-        ('exercise', 'Exercise'),
-        ('exam', 'Exam'),
-    ]
-
     STATUS_CHOICES = [
         ('active', 'Active'),
         ('inactive', 'Inactive'),
@@ -164,8 +156,6 @@ class Task(models.Model):
     topic = models.ForeignKey(Topic, on_delete=models.CASCADE, null=True, blank=True, related_name='tasks')
 
     title = models.CharField(max_length=255)
-    description = models.TextField()
-    task_type = models.CharField(max_length=20, choices=TASK_TYPE_CHOICES, default='assignment')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
 
     # Instructions and resources
@@ -176,15 +166,12 @@ class Task(models.Model):
     # Deadlines and timing
     start_date = models.DateTimeField(null=True, blank=True)
     due_date = models.DateTimeField(null=True, blank=True)
-    duration_minutes = models.IntegerField(default=60, help_text="Time limit in minutes")
 
     # Grading
-    max_score = models.IntegerField(default=100)
     passing_score = models.IntegerField(default=60)
 
     # Settings
     allow_late_submission = models.BooleanField(default=False)
-    is_mandatory = models.BooleanField(default=False)
     order = models.IntegerField(default=0)
 
     # Timestamps
