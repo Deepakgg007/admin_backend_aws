@@ -539,7 +539,7 @@ class EnrolledStudentsListView(generics.ListAPIView, StandardResponseMixin):
         return EnrolledStudentSerializer
 
     def get_queryset(self):
-        """Get enrollments only for courses created by this college"""
+        """Get enrollments for all students belonging to this college"""
         from courses.models import Enrollment
 
         # Get college from authenticated request (set by IsCollegeAuthenticated permission)
@@ -548,9 +548,9 @@ class EnrolledStudentsListView(generics.ListAPIView, StandardResponseMixin):
 
         college = self.request.user.college
 
-        # Get enrollments for courses created by this college
+        # Get enrollments for students belonging to this college (regardless of course creator)
         queryset = Enrollment.objects.filter(
-            course__college=college
+            student__college=college
         ).select_related(
             'student',
             'course'

@@ -85,6 +85,7 @@ class UserBasicSerializer(serializers.ModelSerializer):
     """Basic user info serializer"""
     college_name = serializers.SerializerMethodField()
     college_logo = serializers.SerializerMethodField()
+    college_signature = serializers.SerializerMethodField()
     profile_picture = serializers.SerializerMethodField()
     college_id = serializers.SerializerMethodField()
 
@@ -92,7 +93,7 @@ class UserBasicSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
-            'profile_picture', 'college_name', 'college_logo', 'college_id', 'usn'
+            'profile_picture', 'college_name', 'college_logo', 'college_signature', 'college_id', 'usn'
         ]
 
     def get_college_id(self, obj):
@@ -108,6 +109,15 @@ class UserBasicSerializer(serializers.ModelSerializer):
             if request is not None:
                 return request.build_absolute_uri(obj.college.logo.url)
             return obj.college.logo.url
+        return None
+
+    def get_college_signature(self, obj):
+        """Return full URL for college signature"""
+        if obj.college and obj.college.signature:
+            request = self.context.get('request')
+            if request is not None:
+                return request.build_absolute_uri(obj.college.signature.url)
+            return obj.college.signature.url
         return None
 
     def get_profile_picture(self, obj):

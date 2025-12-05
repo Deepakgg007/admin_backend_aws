@@ -53,6 +53,7 @@ class College(models.Model):
     max_students = models.IntegerField(default=0, help_text="Maximum number of students that can register")
     current_students = models.IntegerField(default=0, help_text="Current number of registered students")
     logo = models.ImageField(upload_to='college_logos/', blank=True, null=True)
+    signature = models.ImageField(upload_to='college_signatures/', blank=True, null=True, help_text="College signature image")
     description = models.TextField(blank=True, null=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='created_colleges')
     created_at = models.DateTimeField(auto_now_add=True)

@@ -97,6 +97,7 @@ class CollegeSerializer(serializers.ModelSerializer):
     available_seats = serializers.SerializerMethodField()
     is_registration_open = serializers.SerializerMethodField()
     logo_display = serializers.SerializerMethodField()
+    signature_display = serializers.SerializerMethodField()
     password = serializers.CharField(write_only=True, required=True, min_length=6, help_text="College login password")
 
     class Meta:
@@ -105,11 +106,13 @@ class CollegeSerializer(serializers.ModelSerializer):
                  'university_name', 'name', 'email', 'password', 'address',
                  'phone_number', 'max_students', 'current_students',
                  'available_seats', 'is_registration_open', 'logo', 'logo_display',
+                 'signature', 'signature_display',
                  'description', 'created_by', 'created_at', 'updated_at', 'is_active']
         read_only_fields = ['id', 'college_id', 'created_by', 'created_at',
-                          'updated_at', 'current_students', 'logo_display']
+                          'updated_at', 'current_students', 'logo_display', 'signature_display']
         extra_kwargs = {
-            'logo': {'write_only': True, 'required': False, 'allow_null': True}
+            'logo': {'write_only': True, 'required': False, 'allow_null': True},
+            'signature': {'write_only': True, 'required': False, 'allow_null': True}
         }
 
     @extend_schema_field(serializers.CharField(allow_null=True))
@@ -119,6 +122,15 @@ class CollegeSerializer(serializers.ModelSerializer):
             if request:
                 return request.build_absolute_uri(obj.logo.url)
             return obj.logo.url
+        return None
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_signature_display(self, obj):
+        if obj.signature:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.signature.url)
+            return obj.signature.url
         return None
 
     @extend_schema_field(serializers.IntegerField())
@@ -230,13 +242,14 @@ class CollegeListSerializer(serializers.ModelSerializer):
     available_seats = serializers.SerializerMethodField()
     is_registration_open = serializers.SerializerMethodField()
     logo = serializers.SerializerMethodField()
+    signature = serializers.SerializerMethodField()
 
     class Meta:
         model = College
         fields = ['id', 'college_id', 'name', 'organization_name',
                  'university_name', 'email','address', 'phone_number', 'max_students',
                  'current_students', 'available_seats', 'is_registration_open',
-                 'logo','description', 'created_by','created_at','updated_at', 'is_active']
+                 'logo', 'signature', 'description', 'created_by','created_at','updated_at', 'is_active']
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_logo(self, obj):
@@ -245,6 +258,15 @@ class CollegeListSerializer(serializers.ModelSerializer):
             if request:
                 return request.build_absolute_uri(obj.logo.url)
             return obj.logo.url
+        return None
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_signature(self, obj):
+        if obj.signature:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.signature.url)
+            return obj.signature.url
         return None
 
     @extend_schema_field(serializers.IntegerField())

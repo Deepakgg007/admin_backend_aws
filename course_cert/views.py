@@ -135,7 +135,7 @@ class StudentCertificationViewSet(viewsets.ReadOnlyModelViewSet):
         return Certification.objects.filter(
             course__enrollments__student=user,
             is_active=True
-        ).distinct()
+        ).select_related("course__college").distinct()
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -172,9 +172,13 @@ class StudentCertificationViewSet(viewsets.ReadOnlyModelViewSet):
         attempts = CertificationAttempt.objects.filter(
             user=request.user,
             certification=cert
-        ).order_by("-attempt_number")
-        
-        serializer = CertificationAttemptSerializer(attempts, many=True)
+        ).select_related("certification__course__college", "user__college").order_by("-attempt_number")
+
+        serializer = CertificationAttemptSerializer(
+            attempts,
+            many=True,
+            context={"request": request}
+        )
         return Response(serializer.data)
 
 
@@ -187,7 +191,12 @@ class StudentCertificationAttemptViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return CertificationAttempt.objects.filter(
             user=self.request.user
-        ).select_related("certification")
+        ).select_related("certification__course__college", "user__college")
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
 
     @action(detail=False, methods=["post"])
     def start(self, request):

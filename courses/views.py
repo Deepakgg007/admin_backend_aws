@@ -149,17 +149,52 @@ class CourseViewSet(viewsets.ModelViewSet, StandardResponseMixin):
 
     @action(detail=False, methods=['get'])
     def course_statistics(self, request):
-        """Get course statistics: Z1 Education and College Admin course counts"""
-        # Count Z1 system courses (where college is NULL)
-        z1_courses_count = Course.objects.filter(college__isnull=True).count()
+        """Get course statistics: Z1 Education and College Admin course counts and top courses by enrollment"""
 
-        # Count college courses (where college is NOT NULL)
-        college_courses_count = Course.objects.filter(college__isnull=False).count()
+        # Get college_id from JWT token if user is college admin
+        college_id = None
+        if hasattr(request, 'auth') and request.auth:
+            if hasattr(request.auth, 'payload'):
+                college_id = request.auth.payload.get('college_id')
+            elif isinstance(request.auth, dict):
+                college_id = request.auth.get('college_id')
+
+        # If college admin, filter by their college
+        if college_id:
+            # Count Z1 system courses (where college is NULL)
+            z1_courses_count = Course.objects.filter(college__isnull=True).count()
+
+            # Count college courses for this specific college
+            college_courses_count = Course.objects.filter(college__college_id=college_id).count()
+
+            # Get Z1 courses with enrollment data
+            z1_courses = Course.objects.filter(
+                college__isnull=True
+            ).values('id', 'title', 'current_enrollments').order_by('-current_enrollments')[:10]
+
+            # Get college courses with enrollment data
+            college_courses = Course.objects.filter(
+                college__college_id=college_id
+            ).values('id', 'title', 'current_enrollments').order_by('-current_enrollments')[:10]
+        else:
+            # Superuser - show all courses
+            z1_courses_count = Course.objects.filter(college__isnull=True).count()
+            college_courses_count = Course.objects.filter(college__isnull=False).count()
+
+            z1_courses = Course.objects.filter(
+                college__isnull=True
+            ).values('id', 'title', 'current_enrollments').order_by('-current_enrollments')[:10]
+
+            college_courses = Course.objects.filter(
+                college__isnull=False
+            ).values('id', 'title', 'current_enrollments').order_by('-current_enrollments')[:10]
 
         return self.success_response(
             data={
                 'z1_education_count': z1_courses_count,
                 'college_admin_count': college_courses_count,
+                'z1_courses': list(z1_courses),
+                'college_courses': list(college_courses),
             },
             message="Course statistics retrieved successfully."
         )
@@ -481,20 +516,27 @@ class TopicViewSet(viewsets.ModelViewSet, StandardResponseMixin):
         queryset = super().get_queryset()
         user = self.request.user
 
-        # College-specific filtering for topics
-        if hasattr(user, 'college') and user.college:
+        # Only apply college-specific filtering for non-superusers
+        if not user.is_superuser:
             is_college_admin = user.__class__.__name__ == 'CollegeUser'
 
-            if is_college_admin:
+            if is_college_admin and hasattr(user, 'college') and user.college:
                 # College admin - show only their college's topics
                 queryset = queryset.filter(course__college=user.college)
-            elif not user.is_superuser:
-                # Regular students - show their college's topics + admin topics + enrolled courses
+            elif hasattr(user, 'college') and user.college:
+                # Regular students with college - show their college's topics + admin topics + enrolled courses
                 from django.db.models import Q
                 queryset = queryset.filter(
                     Q(course__college=user.college) |
                     Q(course__college__isnull=True) |
                     Q(course__enrollments__student=user)  # Show topics for enrolled courses
+                )
+            else:
+                # Regular students without college - show admin topics + enrolled courses only
+                from django.db.models import Q
+                queryset = queryset.filter(
+                    Q(course__college__isnull=True) |
+                    Q(course__enrollments__student=user)
                 )
 
         course_id = self.request.query_params.get('course')

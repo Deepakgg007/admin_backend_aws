@@ -36,14 +36,22 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_college_details(self, obj):
         if obj.college:
-            # Get the request to build absolute URL for logo
+            # Get the request to build absolute URL for logo and signature
             request = self.context.get('request')
             logo_url = None
+            signature_url = None
+            
             if obj.college.logo:
                 if request:
                     logo_url = request.build_absolute_uri(obj.college.logo.url)
                 else:
                     logo_url = obj.college.logo.url
+            
+            if obj.college.signature:
+                if request:
+                    signature_url = request.build_absolute_uri(obj.college.signature.url)
+                else:
+                    signature_url = obj.college.signature.url
 
             return {
                 'id': obj.college.id,
@@ -51,7 +59,8 @@ class UserSerializer(serializers.ModelSerializer):
                 'organization': obj.college.organization.name,
                 'university': obj.college.organization.university.name,
                 'is_active': obj.college.is_active,
-                'logo': logo_url
+                'logo': logo_url,
+                'signature': signature_url
             }
         return None
 

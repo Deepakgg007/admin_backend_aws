@@ -117,15 +117,17 @@ class StudentApprovalListSerializer(serializers.ModelSerializer):
     """Serializer for listing students pending approval"""
     college_name = serializers.CharField(source='college.name', read_only=True)
     profile_picture = serializers.SerializerMethodField()
+    enrollment_count = serializers.SerializerMethodField()
+    is_active = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'email', 'username', 'first_name', 'last_name',
             'usn', 'phone_number', 'college', 'college_name',
-            'approval_status', 'created_at', 'profile_picture'
+            'approval_status', 'is_active', 'enrollment_count', 'created_at', 'profile_picture'
         ]
-        read_only_fields = ['id', 'created_at', 'approval_status']
+        read_only_fields = ['id', 'created_at', 'approval_status', 'is_active', 'enrollment_count']
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_profile_picture(self, obj):
@@ -136,6 +138,16 @@ class StudentApprovalListSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.profile_picture.url)
             return obj.profile_picture.url
         return None
+
+    @extend_schema_field(serializers.IntegerField())
+    def get_enrollment_count(self, obj):
+        """Get count of enrollments for this student"""
+        return obj.enrollments.count()
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_is_active(self, obj):
+        """Student is active if they have at least one enrollment"""
+        return obj.enrollments.count() > 0
 
 
 class StudentApprovalActionSerializer(serializers.Serializer):
@@ -215,7 +227,7 @@ class CollegeListSerializer(serializers.ModelSerializer):
         fields = ['id', 'college_id', 'name', 'organization_name',
                  'university_name', 'email', 'phone_number', 'max_students',
                  'current_students', 'available_seats', 'is_registration_open',
-                 'logo', 'is_active']
+                 'logo', 'signature', 'is_active']
 
     @extend_schema_field(serializers.IntegerField())
     def get_available_seats(self, obj):
@@ -234,13 +246,14 @@ class CollegeDetailSerializer(serializers.ModelSerializer):
     available_seats = serializers.SerializerMethodField()
     is_registration_open = serializers.SerializerMethodField()
     logo = serializers.SerializerMethodField()
+    signature = serializers.SerializerMethodField()
 
     class Meta:
         model = College
         fields = ['id', 'college_id', 'organization', 'organization_name',
                  'university_name', 'name', 'email', 'password', 'address',
                  'phone_number', 'max_students', 'current_students',
-                 'available_seats', 'is_registration_open', 'logo',
+                 'available_seats', 'is_registration_open', 'logo', 'signature',
                  'description', 'created_by', 'created_at', 'updated_at', 'is_active']
         read_only_fields = ['id', 'college_id', 'created_by', 'created_at',
                           'updated_at', 'current_students']
@@ -273,6 +286,15 @@ class CollegeDetailSerializer(serializers.ModelSerializer):
             if request:
                 return request.build_absolute_uri(obj.logo.url)
             return obj.logo.url
+        return None
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_signature(self, obj):
+        if obj.signature:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.signature.url)
+            return obj.signature.url
         return None
 
     def create(self, validated_data):

@@ -207,13 +207,14 @@ class CertificationPublicSerializer(serializers.ModelSerializer):
     total_questions = serializers.SerializerMethodField()
     user_attempts = serializers.SerializerMethodField()
     user_passed = serializers.SerializerMethodField()
+    college = serializers.SerializerMethodField()
 
     class Meta:
         model = Certification
         fields = [
             "id", "title", "description", "passing_score",
             "duration_minutes", "max_attempts",
-            "total_questions", "user_attempts", "user_passed"
+            "total_questions", "user_attempts", "user_passed", "college"
         ]
 
     def get_total_questions(self, obj):
@@ -223,7 +224,7 @@ class CertificationPublicSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         if request and request.user.is_authenticated:
             return CertificationAttempt.objects.filter(
-                user=request.user, 
+                user=request.user,
                 certification=obj
             ).count()
         return 0
@@ -232,11 +233,27 @@ class CertificationPublicSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         if request and request.user.is_authenticated:
             return CertificationAttempt.objects.filter(
-                user=request.user, 
+                user=request.user,
                 certification=obj,
                 passed=True
             ).exists()
         return False
+
+    def get_college(self, obj):
+        """Get college information from the course or user's college as fallback"""
+        # Try to get college from course first
+        college = obj.course.college
+        
+        # If course doesn't have college, try to get from the user's college (who took the certification)
+        if not college:
+            request = self.context.get("request")
+            if request and request.user.is_authenticated:
+                college = request.user.college
+        
+        if college:
+            serializer = CollegeSerializer(college, context=self.context)
+            return serializer.data
+        return None
 
 
 class AttemptAnswerSerializer(serializers.ModelSerializer):
@@ -247,33 +264,86 @@ class AttemptAnswerSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         question = attrs["question"]
         selected = attrs["selected_options"]
-        
+
         if not isinstance(selected, list):
             raise serializers.ValidationError("selected_options must be a list")
-        
+
         if not selected:
             raise serializers.ValidationError("At least one option must be selected")
-        
+
         valid_ids = list(question.options.values_list("id", flat=True))
-        
+
         for opt in selected:
             if opt not in valid_ids:
                 raise serializers.ValidationError(
                     f"Invalid option {opt} for question {question.id}"
                 )
-        
+
         # Check if multiple answers for single-answer question
         if not question.is_multiple_correct and len(selected) > 1:
             raise serializers.ValidationError(
                 "This question allows only one answer"
             )
-        
+
         return attrs
+
+
+class CollegeSerializer(serializers.Serializer):
+    """Serializer for college information in certificates"""
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    logo = serializers.SerializerMethodField()
+    signature_display = serializers.SerializerMethodField()
+
+    def get_logo(self, obj):
+        """Get absolute URL for college logo"""
+        try:
+            if hasattr(obj, 'logo') and obj.logo:
+                # Always try to use request first
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(obj.logo.url)
+
+                # Fallback: construct absolute URL manually
+                logo_path = obj.logo.url
+                if logo_path.startswith('http'):
+                    return logo_path
+                return f"https://krishik-abiuasd.in{logo_path}"
+            return None
+        except Exception as e:
+            print(f"[CollegeSerializer.get_logo] Error for college {obj.id}: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+
+    def get_signature_display(self, obj):
+        """Get absolute URL for college signature image"""
+        try:
+            # College model uses 'signature' field
+            if hasattr(obj, 'signature') and obj.signature:
+                # Always try to use request first
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(obj.signature.url)
+
+                # Fallback: construct absolute URL manually
+                signature_path = obj.signature.url
+                if signature_path.startswith('http'):
+                    return signature_path
+                return f"https://krishik-abiuasd.in{signature_path}"
+            return None
+        except Exception as e:
+            print(f"[CollegeSerializer.get_signature_display] Error for college {obj.id}: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
 
 
 class CertificationAttemptSerializer(serializers.ModelSerializer):
     answers = AttemptAnswerSerializer(many=True, read_only=True)
     certification_title = serializers.CharField(source="certification.title", read_only=True)
+    college = serializers.SerializerMethodField()
+    student_name = serializers.SerializerMethodField()
     is_expired = serializers.BooleanField(read_only=True)
 
     class Meta:
@@ -283,12 +353,60 @@ class CertificationAttemptSerializer(serializers.ModelSerializer):
             "score", "passed", "attempt_number",
             "started_at", "completed_at",
             "is_expired", "certificate_issued",
+            "student_name", "college",
             "answers"
         ]
         read_only_fields = [
             "score", "passed", "attempt_number",
             "started_at", "completed_at", "certificate_issued"
         ]
+
+    def get_student_name(self, obj):
+        """Get student full name from user"""
+        user = obj.user
+        if user.first_name and user.last_name:
+            return f"{user.first_name} {user.last_name}"
+        elif user.first_name:
+            return user.first_name
+        return user.email
+
+    def get_college(self, obj):
+        """Get college information from the course or user's college as fallback"""
+        try:
+            # Try to get college from course first
+            college = obj.certification.course.college
+            
+            # If course doesn't have college, try to get from the user's college (who took the certification)
+            if not college and obj.user and obj.user.college:
+                college = obj.user.college
+            
+            if college:
+                # Create serializer with request context to build absolute URLs
+                serializer = CollegeSerializer(
+                    college,
+                    context={"request": self.context.get("request")}
+                )
+                data = serializer.data
+
+                # Debug logging
+                print(f"\n[CertificationAttemptSerializer.get_college] Processing attempt {obj.id}")
+                print(f"[get_college] College: {college.name} (ID: {college.id})")
+                print(f"[get_college] College has logo field: {hasattr(college, 'logo')}")
+                print(f"[get_college] College logo value: {college.logo}")
+                print(f"[get_college] College logo bool: {bool(college.logo)}")
+                if college.logo:
+                    print(f"[get_college] College logo URL: {college.logo.url}")
+                print(f"[get_college] Serialized college data: {data}")
+                print(f"[get_college] Serialized logo field: {data.get('logo')}")
+                print(f"[get_college] Serialized signature field: {data.get('signature_display')}\n")
+
+                return data
+            return None
+        except Exception as e:
+            print(f"[CertificationAttemptSerializer.get_college] ERROR: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
 
     def create(self, validated_data):
         user = self.context["request"].user

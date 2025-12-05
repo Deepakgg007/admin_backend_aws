@@ -2,10 +2,16 @@ from rest_framework import generics, status, viewsets, filters, mixins
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.views import APIView
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from django.contrib.auth import get_user_model
 from django.db.models import Q, Count, F
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 from drf_spectacular.utils import extend_schema, OpenApiResponse
+import requests
+import base64
+import logging
 
 from .models import University, Organization, College
 from .serializers import (
@@ -16,6 +22,7 @@ from .permissions import IsOwnerOrReadOnly, IsAdminUserOrReadOnly
 from .utils import StandardResponseMixin, CustomPagination
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class APIRootView(APIView, StandardResponseMixin):
@@ -369,8 +376,83 @@ class CollegeViewSet(viewsets.ModelViewSet, StandardResponseMixin):
             data=serializer.data,
             message="Colleges with available seats retrieved successfully."
         )
-    
 
 
+@csrf_exempt
+@require_http_methods(["GET"])
+def proxy_image_to_base64(request):
+    """
+    Proxy endpoint to convert images to base64
+    This solves CORS issues when generating PDFs with external images
 
-    
+    Usage: GET /api/utils/image-to-base64/?url=<image_url>
+
+    Returns:
+        JSON response with base64 encoded image or error message
+    """
+    image_url = request.GET.get('url')
+
+    if not image_url:
+        logger.warning('Image proxy called without URL parameter')
+        return JsonResponse({
+            'success': False,
+            'error': 'No URL provided',
+            'message': 'Please provide a url parameter'
+        }, status=400)
+
+    try:
+        logger.info(f"📷 Fetching image from: {image_url}")
+
+        # Fetch the image from the URL
+        response = requests.get(
+            image_url,
+            timeout=15,
+            verify=True,
+            headers={
+                'User-Agent': 'Z1-Certificate-Generator/1.0'
+            }
+        )
+        response.raise_for_status()
+
+        # Get content type
+        content_type = response.headers.get('Content-Type', 'image/png')
+        logger.info(f"  - Content type: {content_type}")
+        logger.info(f"  - Content length: {len(response.content)} bytes")
+
+        # Convert to base64
+        base64_image = base64.b64encode(response.content).decode('utf-8')
+        data_url = f'data:{content_type};base64,{base64_image}'
+
+        logger.info(f"✅ Successfully converted image to base64, size: {len(base64_image)} chars")
+
+        return JsonResponse({
+            'success': True,
+            'base64': data_url,
+            'content_type': content_type,
+            'size': len(base64_image)
+        })
+
+    except requests.exceptions.Timeout:
+        logger.error(f"⏱️ Timeout fetching image: {image_url}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Timeout',
+            'message': 'Image fetch timed out after 15 seconds'
+        }, status=504)
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"❌ Error fetching image: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Fetch failed',
+            'message': f'Failed to fetch image: {str(e)}'
+        }, status=500)
+
+    except Exception as e:
+        logger.error(f"💥 Unexpected error converting image: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Server error',
+            'message': f'Unexpected error: {str(e)}'
+        }, status=500)
+

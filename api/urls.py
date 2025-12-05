@@ -7,7 +7,8 @@ from drf_spectacular.views import (
 )
 from .views import (
     api_root,
-    UniversityViewSet, OrganizationViewSet, CollegeViewSet
+    UniversityViewSet, OrganizationViewSet, CollegeViewSet,
+    proxy_image_to_base64
 )
 
 router = DefaultRouter()
@@ -22,6 +23,9 @@ urlpatterns = [
     path('schema/', SpectacularAPIView.as_view(), name='schema'),
     path('docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+
+    # Utility endpoints
+    path('utils/image-to-base64/', proxy_image_to_base64, name='proxy-image-to-base64'),
 
     # Core API routes
     path('', include(router.urls)),
