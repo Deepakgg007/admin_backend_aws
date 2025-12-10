@@ -10,7 +10,7 @@ from .views import (
 from .views_task_content import (
     TaskDocumentViewSet, TaskVideoViewSet, TaskQuestionViewSet,
     TaskRichTextPageViewSet, TaskTextBlockViewSet,
-    TaskCodeBlockViewSet, TaskVideoBlockViewSet
+    TaskCodeBlockViewSet, TaskVideoBlockViewSet, TaskHighlightBlockViewSet
 )
 from .models import Enrollment
 from .serializers import EnrollmentSerializer
@@ -54,6 +54,7 @@ router.register('task-richtext-pages', TaskRichTextPageViewSet, basename='task-r
 router.register('task-text-blocks', TaskTextBlockViewSet, basename='task-text-block')
 router.register('task-code-blocks', TaskCodeBlockViewSet, basename='task-code-block')
 router.register('task-video-blocks', TaskVideoBlockViewSet, basename='task-video-block')
+router.register('task-highlight-blocks', TaskHighlightBlockViewSet, basename='task-highlight-block')
 
 urlpatterns = [
     # Direct enrollment endpoint (bypasses router)

@@ -4,7 +4,7 @@ from drf_spectacular.utils import extend_schema_field
 from .models import (
     Course, Syllabus, SyllabusTopic, Topic, Task, Enrollment, TaskSubmission,
     TaskDocument, TaskVideo, TaskQuestion, TaskMCQ, TaskCoding, TaskTestCase,
-    TaskRichTextPage, TaskTextBlock, TaskCodeBlock, TaskVideoBlock
+    TaskRichTextPage, TaskTextBlock, TaskCodeBlock, TaskVideoBlock, TaskHighlightBlock
 )
 # ContentSubmission moved to student app
 from student.models import ContentSubmission
@@ -742,17 +742,27 @@ class TaskVideoBlockSerializer(serializers.ModelSerializer):
         return obj.get_youtube_embed_id()
 
 
+class TaskHighlightBlockSerializer(serializers.ModelSerializer):
+    """Serializer for highlight content blocks"""
+
+    class Meta:
+        model = TaskHighlightBlock
+        fields = ['id', 'page', 'content', 'order']
+        read_only_fields = ['id']
+
+
 class TaskRichTextPageSerializer(serializers.ModelSerializer):
     """Serializer for rich text pages with nested blocks (pages don't require completion tracking)"""
     text_blocks = TaskTextBlockSerializer(many=True, read_only=True)
     code_blocks = TaskCodeBlockSerializer(many=True, read_only=True)
     video_blocks = TaskVideoBlockSerializer(many=True, read_only=True)
+    highlight_blocks = TaskHighlightBlockSerializer(many=True, read_only=True)
 
     class Meta:
         model = TaskRichTextPage
         fields = [
             'id', 'page_id', 'task', 'title', 'slug', 'order',
-            'text_blocks', 'code_blocks', 'video_blocks',
+            'text_blocks', 'code_blocks', 'video_blocks', 'highlight_blocks',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'page_id', 'slug', 'created_at', 'updated_at']

@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import (
     Course, Syllabus, SyllabusTopic, Topic, Task, Enrollment, TaskSubmission,
     TaskDocument, TaskVideo, TaskQuestion, TaskMCQ, TaskCoding, TaskTestCase,
-    TaskRichTextPage, TaskTextBlock, TaskCodeBlock, TaskVideoBlock
+    TaskRichTextPage, TaskTextBlock, TaskCodeBlock, TaskVideoBlock, TaskHighlightBlock
 )
 # ContentSubmission moved to student app
 # ContentProgress moved to student app
@@ -307,6 +307,17 @@ class TaskVideoBlockAdmin(admin.ModelAdmin):
     list_display = ['title', 'page', 'youtube_url', 'order']
     search_fields = ['page__title', 'title', 'youtube_url']
     ordering = ['page', 'order']
+
+
+@admin.register(TaskHighlightBlock)
+class TaskHighlightBlockAdmin(admin.ModelAdmin):
+    list_display = ['page', 'content_preview', 'order']
+    search_fields = ['page__title', 'content']
+    ordering = ['page', 'order']
+
+    def content_preview(self, obj):
+        return obj.content[:100] + '...' if len(obj.content) > 100 else obj.content
+    content_preview.short_description = 'Content Preview'
 
 
 # ContentSubmission admin moved to student app (student.admin.ContentSubmissionAdmin)

@@ -515,10 +515,8 @@ class TaskRichTextPage(models.Model):
     """Rich text content pages with mixed content blocks"""
     page_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='richtext_pages')
-
     title = models.CharField(max_length=255, verbose_name="Page Title")
     slug = models.SlugField(max_length=255, help_text="URL-friendly title")
-
     order = models.PositiveIntegerField(default=0, verbose_name="Order", help_text="Display order within task")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -625,6 +623,27 @@ class TaskVideoBlock(models.Model):
             if match:
                 return match.group(1)
         return None
+
+
+class TaskHighlightBlock(models.Model):
+    """Highlight content blocks - displays content exactly as entered with dark background"""
+    page = models.ForeignKey(TaskRichTextPage, on_delete=models.CASCADE, related_name='highlight_blocks')
+
+    content = models.TextField(
+        verbose_name="Highlight Content",
+        help_text="Content will be displayed exactly as entered with preserved formatting"
+    )
+    order = models.PositiveIntegerField(default=0, verbose_name="Order")
+
+    class Meta:
+        db_table = 'task_highlight_blocks'
+        ordering = ['order']
+        indexes = [
+            models.Index(fields=['page', 'order']),
+        ]
+
+    def __str__(self):
+        return f"Highlight Block {self.order} - {self.page.title}"
 
 
 class Enrollment(models.Model):

@@ -9,14 +9,14 @@ from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 from .models import (
     Course, Syllabus, SyllabusTopic, Topic, Task, Enrollment, TaskSubmission,
-    TaskRichTextPage, TaskTextBlock, TaskCodeBlock, TaskVideoBlock
+    TaskRichTextPage, TaskTextBlock, TaskCodeBlock, TaskVideoBlock, TaskHighlightBlock
 )
 from .serializers import (
     CourseListSerializer, CourseDetailSerializer, CourseCreateUpdateSerializer,
     SyllabusSerializer, SyllabusTopicSerializer, TaskDetailSerializer, TopicSerializer, TaskSerializer,
     EnrollmentSerializer, TaskSubmissionSerializer, TaskSubmissionGradeSerializer,
     TaskRichTextPageSerializer, TaskTextBlockSerializer, TaskCodeBlockSerializer,
-    TaskVideoBlockSerializer
+    TaskVideoBlockSerializer, TaskHighlightBlockSerializer
 )
 from api.utils import StandardResponseMixin, CustomPagination
 from api.permissions import IsOwnerOrReadOnly, IsAdminUserOrReadOnly, IsStaffOrReadOnly
@@ -46,9 +46,21 @@ class CourseViewSet(viewsets.ModelViewSet, StandardResponseMixin):
         queryset = super().get_queryset()
         user = self.request.user
 
+        # Debug logging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"CourseViewSet - User: {user.email if hasattr(user, 'email') else user}")
+        logger.info(f"CourseViewSet - User class: {user.__class__.__name__}")
+        logger.info(f"CourseViewSet - Has college: {hasattr(user, 'college')}")
+        if hasattr(user, 'college'):
+            logger.info(f"CourseViewSet - User college: {user.college}")
+            logger.info(f"CourseViewSet - User college ID: {user.college.id if user.college else None}")
+        logger.info(f"CourseViewSet - Total courses in DB: {Course.objects.count()}")
+        logger.info(f"CourseViewSet - Published courses: {Course.objects.filter(status='published').count()}")
+
         # College-specific filtering
         from django.db.models import Q
-        
+
         if hasattr(user, 'college') and user.college:
             # Check if this is a college admin (CollegeUser from college authentication)
             # CollegeUser is a fake class created in college/authentication.py
@@ -61,12 +73,10 @@ class CourseViewSet(viewsets.ModelViewSet, StandardResponseMixin):
                     Q(college=user.college) |                      # Their college's courses
                     Q(college__isnull=True)                        # Admin courses (no college assigned)
                 )
-            # For students (CustomUser with college but not staff), show college + admin courses
+            # For students (CustomUser with college but not staff)
+            # Show ALL published courses (admin can control visibility through enrollment)
             else:
-                queryset = queryset.filter(
-                    Q(college=user.college, status='published') |  # Their college's published courses
-                    Q(college__isnull=True, status='published')    # Admin courses (no college assigned)
-                )
+                queryset = queryset.filter(status='published')
         # Superusers see all courses
         elif user.is_superuser:
             # Superusers see all courses (no filtering)
@@ -94,6 +104,10 @@ class CourseViewSet(viewsets.ModelViewSet, StandardResponseMixin):
         college_id = self.request.query_params.get('college')
         if college_id and user.is_superuser:
             queryset = queryset.filter(college_id=college_id)
+
+        # Debug: Log final queryset count
+        logger.info(f"CourseViewSet - Final queryset count: {queryset.count()}")
+        logger.info(f"CourseViewSet - Query params: {self.request.query_params}")
 
         return queryset.select_related('created_by', 'college')
 
@@ -668,7 +682,11 @@ class TaskViewSet(viewsets.ModelViewSet, StandardResponseMixin):
 
         # Prefetch related to avoid null errors in serializer
         queryset = queryset.select_related('course', 'topic', 'created_by').prefetch_related(
-            'documents', 'videos', 'questions', 'richtext_pages'
+            'documents', 'videos', 'questions', 'richtext_pages',
+            'richtext_pages__text_blocks',
+            'richtext_pages__code_blocks',
+            'richtext_pages__video_blocks',
+            'richtext_pages__highlight_blocks'
         ).filter(status='active')
 
         return queryset.distinct()

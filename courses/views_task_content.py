@@ -16,14 +16,14 @@ from django.shortcuts import get_object_or_404
 
 from .models import (
     Task, TaskDocument, TaskVideo, TaskQuestion, TaskMCQ, TaskCoding,
-    TaskRichTextPage, TaskTextBlock, TaskCodeBlock, TaskVideoBlock
+    TaskRichTextPage, TaskTextBlock, TaskCodeBlock, TaskVideoBlock, TaskHighlightBlock
 )
 from .serializers import (
     TaskDocumentSerializer, TaskVideoSerializer,
     TaskQuestionSerializer, TaskQuestionCreateSerializer,
     TaskMCQSerializer, TaskCodingSerializer,
     TaskRichTextPageSerializer,
-    TaskTextBlockSerializer, TaskCodeBlockSerializer, TaskVideoBlockSerializer
+    TaskTextBlockSerializer, TaskCodeBlockSerializer, TaskVideoBlockSerializer, TaskHighlightBlockSerializer
 )
 
 
@@ -351,3 +351,31 @@ class TaskVideoBlockViewSet(viewsets.ModelViewSet):
                 continue
 
         return Response({'message': 'Video blocks reordered successfully'}, status=status.HTTP_200_OK)
+
+
+class TaskHighlightBlockViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing highlight content blocks within pages"""
+    serializer_class = TaskHighlightBlockSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = TaskHighlightBlock.objects.all()
+        page_id = self.request.query_params.get('page')
+        if page_id:
+            queryset = queryset.filter(page_id=page_id)
+        return queryset.select_related('page').order_by('order')
+
+    @action(detail=False, methods=['post'], url_path='reorder')
+    def reorder(self, request):
+        """Reorder highlight blocks"""
+        order_data = request.data.get('items', [])
+
+        for item in order_data:
+            try:
+                block = TaskHighlightBlock.objects.get(id=item['id'])
+                block.order = item['order']
+                block.save(update_fields=['order'])
+            except TaskHighlightBlock.DoesNotExist:
+                continue
+
+        return Response({'message': 'Highlight blocks reordered successfully'}, status=status.HTTP_200_OK)
