@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     StudentChallengeSubmissionViewSet,
-    submit_mcq_question, submit_coding_question, run_code,
+    submit_mcq_set_question, submit_coding_question, run_code,
     get_task_submissions, reset_quiz_submissions,
     mark_content_complete, get_course_progress, get_content_progress_list
 )
@@ -28,8 +28,9 @@ urlpatterns = [
     # Code execution endpoint
     path('submissions/run/', run_code, name='run-code'),
 
-    # Content Submission endpoints (videos, documents, questions)
-    path('tasks/<int:task_id>/submit-mcq/', submit_mcq_question, name='submit-mcq'),
+    # Content Submission endpoints (videos, documents, MCQ Sets, coding)
+    # OLD MCQ endpoint removed - use MCQ Sets instead
+    path('tasks/<int:task_id>/submit-mcq-set/', submit_mcq_set_question, name='submit-mcq-set'),
     path('tasks/<int:task_id>/submit-coding/', submit_coding_question, name='submit-coding'),
     path('tasks/<int:task_id>/submissions/', get_task_submissions, name='get-task-submissions'),
     path('tasks/<int:task_id>/reset-quiz/', reset_quiz_submissions, name='reset-quiz'),

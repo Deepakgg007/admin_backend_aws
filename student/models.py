@@ -173,6 +173,7 @@ class ContentSubmission(models.Model):
     document = models.ForeignKey('courses.TaskDocument', on_delete=models.CASCADE, null=True, blank=True, related_name='submissions')
     video = models.ForeignKey('courses.TaskVideo', on_delete=models.CASCADE, null=True, blank=True, related_name='submissions')
     page = models.ForeignKey('courses.TaskRichTextPage', on_delete=models.CASCADE, null=True, blank=True, related_name='submissions')
+    mcq_set_question = models.ForeignKey('courses.TaskMCQSetQuestion', on_delete=models.CASCADE, null=True, blank=True, related_name='submissions')
 
     # Question-specific fields
     mcq_selected_choice = models.IntegerField(null=True, blank=True, help_text="Selected choice number (1-4) for MCQ")
@@ -217,6 +218,11 @@ class ContentSubmission(models.Model):
                 condition=models.Q(page__isnull=False),
                 name='unique_student_page'
             ),
+            models.UniqueConstraint(
+                fields=['student', 'mcq_set_question'],
+                condition=models.Q(mcq_set_question__isnull=False),
+                name='unique_student_mcq_set_question'
+            ),
         ]
         verbose_name = "Content Submission"
         verbose_name_plural = "Content Submissions"
@@ -231,6 +237,8 @@ class ContentSubmission(models.Model):
             content_ref = f"Video: {self.video.title or 'Untitled'}"
         elif self.page:
             content_ref = f"Page: {self.page.title or 'Untitled'}"
+        elif self.mcq_set_question:
+            content_ref = f"MCQ Set Question: {self.mcq_set_question.question_text[:30]}..."
         return f"{self.student.email} - {content_ref} ({self.submission_type})"
 
 
@@ -298,11 +306,11 @@ class ContentProgress(models.Model):
     def get_course_progress(cls, user, course):
         """
         Calculate course progress based on completed content items
-        ONLY counts videos, documents, questions - NO PAGES
+        ONLY counts videos, documents, coding questions, and MCQ Set questions - NO PAGES or OLD MCQs
         Returns: (completed_count, total_count, percentage)
         """
-        from courses.models import Task, TaskVideo, TaskDocument, TaskQuestion, Course, Topic
-        
+        from courses.models import Task, TaskVideo, TaskDocument, TaskQuestion, TaskMCQSet, TaskMCQSetQuestion, Course, Topic
+
         # Ensure course is a Course instance
         if not isinstance(course, Course):
             try:
@@ -318,7 +326,7 @@ class ContentProgress(models.Model):
                     return 0, 0, 0.0
             except Course.DoesNotExist:
                 return 0, 0, 0.0
-        
+
         # Get tasks BOTH from topics AND directly from course
         # Tasks can be attached either way
         from django.db.models import Q
@@ -334,12 +342,18 @@ class ContentProgress(models.Model):
         if not tasks.exists():
             return 0, 0, 0.0
 
-        # Count total content items (excluding pages)
+        # Count total content items (excluding pages and old MCQ questions)
         total_videos = TaskVideo.objects.filter(task__in=tasks).count()
         total_documents = TaskDocument.objects.filter(task__in=tasks).count()
-        total_questions = TaskQuestion.objects.filter(task__in=tasks).count()
 
-        total_count = total_videos + total_documents + total_questions
+        # Only count coding questions (old MCQ questions are deprecated)
+        total_coding_questions = TaskQuestion.objects.filter(task__in=tasks, question_type='coding').count()
+
+        # Count MCQ Set questions (new system for MCQs)
+        mcq_sets = TaskMCQSet.objects.filter(task__in=tasks)
+        total_mcq_set_questions = TaskMCQSetQuestion.objects.filter(mcq_set__in=mcq_sets).count()
+
+        total_count = total_videos + total_documents + total_coding_questions + total_mcq_set_questions
 
         if total_count == 0:
             return 0, 0, 0.0

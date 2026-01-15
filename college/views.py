@@ -589,17 +589,12 @@ class EnrolledStudentsListView(generics.ListAPIView, StandardResponseMixin):
             old_progress = enrollment.progress_percentage
             enrollment.calculate_progress()
             new_progress = enrollment.progress_percentage
-
-            # Debug logging
-            import sys
-            print(f"[PROGRESS_DEBUG] Student: {enrollment.student.email}, Course: {enrollment.course.title}, Old: {old_progress}%, New: {new_progress}%", file=sys.stderr)
-
             enrollment.save(update_fields=['progress_percentage', 'status', 'completed_at'])
 
         # Paginate
         page = self.paginate_queryset(queryset)
         if page is not None:
-            serializer = self.get_serializer(page, many=True)
+            serializer = self.get_serializer(page, many=True, context={'request': request})
 
             # Get pagination info
             paginator = self.paginator
@@ -617,7 +612,7 @@ class EnrolledStudentsListView(generics.ListAPIView, StandardResponseMixin):
             )
 
         # Non-paginated response
-        serializer = self.get_serializer(queryset, many=True)
+        serializer = self.get_serializer(queryset, many=True, context={'request': request})
         return self.success_response(
             data=serializer.data,
             message="Enrolled students retrieved successfully."

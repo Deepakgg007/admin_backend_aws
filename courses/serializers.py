@@ -4,6 +4,7 @@ from drf_spectacular.utils import extend_schema_field
 from .models import (
     Course, Syllabus, SyllabusTopic, Topic, Task, Enrollment, TaskSubmission,
     TaskDocument, TaskVideo, TaskQuestion, TaskMCQ, TaskCoding, TaskTestCase,
+    TaskMCQSet, TaskMCQSetQuestion,
     TaskRichTextPage, TaskTextBlock, TaskCodeBlock, TaskVideoBlock, TaskHighlightBlock
 )
 # ContentSubmission moved to student app
@@ -708,6 +709,97 @@ class TaskQuestionCreateSerializer(serializers.ModelSerializer):
             else:
                 # Create new coding details
                 TaskCoding.objects.create(question=instance, **coding_data)
+
+        return instance
+
+
+class TaskMCQSetQuestionSerializer(serializers.ModelSerializer):
+    """Serializer for individual MCQ questions within a set"""
+    is_completed = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TaskMCQSetQuestion
+        fields = [
+            'id', 'mcq_set', 'question_text', 'marks',
+            'choice_1_text', 'choice_1_is_correct',
+            'choice_2_text', 'choice_2_is_correct',
+            'choice_3_text', 'choice_3_is_correct',
+            'choice_4_text', 'choice_4_is_correct',
+            'solution_explanation', 'order', 'is_completed',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'is_completed']
+
+    def get_is_completed(self, obj):
+        """Check if the current user has completed this question"""
+        request = self.context.get('request')
+        if not request or not request.user or not request.user.is_authenticated:
+            return False
+
+        # Check ContentProgress table for completion status
+        from student.models import ContentProgress
+        return ContentProgress.objects.filter(
+            user=request.user,
+            content_type='question',
+            content_id=obj.id,
+            is_completed=True
+        ).exists()
+
+
+class TaskMCQSetSerializer(serializers.ModelSerializer):
+    """Serializer for MCQ Sets with nested questions"""
+    mcq_questions = TaskMCQSetQuestionSerializer(many=True, read_only=True)
+    total_marks = serializers.ReadOnlyField()
+    question_count = serializers.ReadOnlyField()
+
+    class Meta:
+        model = TaskMCQSet
+        fields = [
+            'id', 'mcq_set_id', 'task', 'title', 'description',
+            'order', 'mcq_questions', 'total_marks', 'question_count',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'mcq_set_id', 'created_at', 'updated_at', 'total_marks', 'question_count']
+
+
+class TaskMCQSetCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating/updating MCQ Sets with questions"""
+    questions = serializers.ListField(child=serializers.DictField(), write_only=True, required=False)
+
+    class Meta:
+        model = TaskMCQSet
+        fields = ['id', 'task', 'title', 'description', 'order', 'questions']
+        read_only_fields = ['id']
+
+    def create(self, validated_data):
+        questions_data = validated_data.pop('questions', [])
+        mcq_set = TaskMCQSet.objects.create(**validated_data)
+
+        # Create questions for this set
+        for idx, question_data in enumerate(questions_data):
+            question_data['order'] = idx
+            TaskMCQSetQuestion.objects.create(mcq_set=mcq_set, **question_data)
+
+        return mcq_set
+
+    def update(self, instance, validated_data):
+        questions_data = validated_data.pop('questions', None)
+
+        # Update MCQ set fields
+        instance.title = validated_data.get('title', instance.title)
+        instance.description = validated_data.get('description', instance.description)
+        instance.order = validated_data.get('order', instance.order)
+        instance.save()
+
+        # If questions data provided, update questions
+        if questions_data is not None:
+            # Delete existing questions
+            instance.mcq_questions.all().delete()
+
+            # Create new questions
+            for idx, question_data in enumerate(questions_data):
+                question_data['order'] = idx
+                TaskMCQSetQuestion.objects.create(mcq_set=instance, **question_data)
 
         return instance
 

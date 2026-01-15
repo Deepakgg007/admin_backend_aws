@@ -429,7 +429,7 @@ class StudentChallengeSubmissionViewSet(viewsets.ModelViewSet):
 
 from courses.models import (
     Task, TaskQuestion, TaskMCQ, TaskCoding, TaskDocument,
-    TaskVideo, Enrollment, TaskSubmission
+    TaskVideo, Enrollment, TaskSubmission, TaskMCQSet, TaskMCQSetQuestion
 )
 from .models import ContentSubmission
 from .serializers import (
@@ -439,13 +439,27 @@ from .serializers import (
 )
 
 
+# OLD MCQ SYSTEM - DEPRECATED (Use MCQ Sets instead)
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# def submit_mcq_question(request, task_id):
+#     """
+#     OLD: Submit MCQ question answer
+#     DEPRECATED: Use submit_mcq_set_question instead
+#     """
+#     return Response({
+#         'success': False,
+#         'message': 'This endpoint is deprecated. Please use MCQ Sets instead.'
+#     }, status=status.HTTP_410_GONE)
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def submit_mcq_question(request, task_id):
+def submit_mcq_set_question(request, task_id):
     """
-    Submit MCQ question answer
-    POST /api/student/tasks/{task_id}/submit-mcq/
-    Body: {"question_id": 123, "selected_choice": 2}
+    Submit MCQ Set question answer
+    POST /api/student/tasks/{task_id}/submit-mcq-set/
+    Body: {"mcq_set_question_id": 123, "selected_choice": 2}
     """
     task = get_object_or_404(Task, id=task_id)
 
@@ -457,43 +471,46 @@ def submit_mcq_question(request, task_id):
         }, status=status.HTTP_403_FORBIDDEN)
 
     # Validate input
-    serializer = MCQSubmissionSerializer(data=request.data)
-    if not serializer.is_valid():
+    mcq_set_question_id = request.data.get('mcq_set_question_id')
+    selected_choice = request.data.get('selected_choice')
+
+    if not mcq_set_question_id or not selected_choice:
         return Response({
             'success': False,
-            'message': 'Invalid submission data',
-            'errors': serializer.errors
+            'message': 'mcq_set_question_id and selected_choice are required'
         }, status=status.HTTP_400_BAD_REQUEST)
 
-    question_id = serializer.validated_data['question_id']
-    selected_choice = serializer.validated_data['selected_choice']
-
-    question = get_object_or_404(TaskQuestion, id=question_id, task=task)
-
-    if question.question_type != 'mcq':
-        return Response({
-            'success': False,
-            'message': 'Question is not an MCQ'
-        }, status=status.HTTP_400_BAD_REQUEST)
-
+    # Validate selected_choice is between 1-4
     try:
-        mcq_details = question.mcq_details
-    except TaskMCQ.DoesNotExist:
+        selected_choice = int(selected_choice)
+        if selected_choice not in [1, 2, 3, 4]:
+            raise ValueError()
+    except (ValueError, TypeError):
         return Response({
             'success': False,
-            'message': 'MCQ details not found'
-        }, status=status.HTTP_404_NOT_FOUND)
+            'message': 'selected_choice must be an integer between 1 and 4'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # Get MCQ Set question
+    mcq_set_question = get_object_or_404(TaskMCQSetQuestion, id=mcq_set_question_id)
+
+    # Verify the question belongs to a set that belongs to this task
+    if mcq_set_question.mcq_set.task.id != task.id:
+        return Response({
+            'success': False,
+            'message': 'This question does not belong to this task'
+        }, status=status.HTTP_400_BAD_REQUEST)
 
     # Check correctness
     choice_correctness = {
-        1: mcq_details.choice_1_is_correct,
-        2: mcq_details.choice_2_is_correct,
-        3: mcq_details.choice_3_is_correct,
-        4: mcq_details.choice_4_is_correct,
+        1: mcq_set_question.choice_1_is_correct,
+        2: mcq_set_question.choice_2_is_correct,
+        3: mcq_set_question.choice_3_is_correct,
+        4: mcq_set_question.choice_4_is_correct,
     }
 
     is_correct = choice_correctness.get(selected_choice, False)
-    score = question.marks if is_correct else 0
+    score = mcq_set_question.marks if is_correct else 0
 
     # Find all correct choices for response
     correct_choices = [i for i in range(1, 5) if choice_correctness.get(i, False)]
@@ -503,7 +520,7 @@ def submit_mcq_question(request, task_id):
             # Create or update submission
             submission, created = ContentSubmission.objects.update_or_create(
                 student=request.user,
-                question=question,
+                mcq_set_question=mcq_set_question,
                 defaults={
                     'task': task,
                     'submission_type': 'question',
@@ -514,6 +531,28 @@ def submit_mcq_question(request, task_id):
                     'completed': True
                 }
             )
+
+            # Create ContentProgress record for MCQ Set question
+            from .models import ContentProgress
+            from django.utils import timezone
+
+            progress, progress_created = ContentProgress.objects.get_or_create(
+                user=request.user,
+                course=task.course,
+                task=task,
+                content_type='question',
+                content_id=mcq_set_question.id,
+                defaults={
+                    'is_completed': True,
+                    'completed_at': timezone.now()
+                }
+            )
+
+            # If it already existed but wasn't completed, mark it as completed
+            if not progress_created and not progress.is_completed:
+                progress.is_completed = True
+                progress.completed_at = timezone.now()
+                progress.save(update_fields=['is_completed', 'completed_at'])
 
             # Update TaskSubmission to track completed content
             task_submission, _ = TaskSubmission.objects.get_or_create(
@@ -527,11 +566,11 @@ def submit_mcq_question(request, task_id):
             if not isinstance(completed_content, dict):
                 completed_content = {}
 
-            if 'question' not in completed_content:
-                completed_content['question'] = []
+            if 'mcq_set_question' not in completed_content:
+                completed_content['mcq_set_question'] = []
 
-            if question.id not in completed_content['question']:
-                completed_content['question'].append(question.id)
+            if mcq_set_question.id not in completed_content['mcq_set_question']:
+                completed_content['mcq_set_question'].append(mcq_set_question.id)
 
             # Assign back to trigger Django's change detection
             task_submission.completed_content = completed_content
@@ -545,11 +584,11 @@ def submit_mcq_question(request, task_id):
                 pass
 
             response_data = {
-                'question_id': question.id,
+                'mcq_set_question_id': mcq_set_question.id,
                 'selected_choice': selected_choice,
                 'is_correct': is_correct,
                 'correct_choices': correct_choices,
-                'solution_explanation': mcq_details.solution_explanation or "No explanation provided",
+                'solution_explanation': mcq_set_question.solution_explanation or "No explanation provided",
                 'score': float(score),
                 'completed': True,
                 'submitted_at': submission.submitted_at.isoformat()
@@ -557,14 +596,14 @@ def submit_mcq_question(request, task_id):
 
             return Response({
                 'success': True,
-                'message': 'MCQ answer submitted successfully',
+                'message': 'MCQ Set answer submitted successfully',
                 'data': response_data
             }, status=status.HTTP_200_OK)
 
     except Exception as e:
         return Response({
             'success': False,
-            'message': f'Error submitting MCQ: {str(e)}'
+            'message': f'Error submitting MCQ Set answer: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -1037,7 +1076,7 @@ def get_task_submissions(request, task_id):
     submissions = ContentSubmission.objects.filter(
         student=request.user,
         task=task
-    ).select_related('question', 'document', 'video')
+    ).select_related('question', 'document', 'video', 'mcq_set_question')
 
     serializer = ContentSubmissionSerializer(submissions, many=True)
 

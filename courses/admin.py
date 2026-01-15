@@ -2,6 +2,7 @@ from django.contrib import admin
 from .models import (
     Course, Syllabus, SyllabusTopic, Topic, Task, Enrollment, TaskSubmission,
     TaskDocument, TaskVideo, TaskQuestion, TaskMCQ, TaskCoding, TaskTestCase,
+    TaskMCQSet, TaskMCQSetQuestion,
     TaskRichTextPage, TaskTextBlock, TaskCodeBlock, TaskVideoBlock, TaskHighlightBlock
 )
 # ContentSubmission moved to student app
@@ -227,6 +228,56 @@ class TaskCodingAdmin(admin.ModelAdmin):
     def has_hints(self, obj):
         return bool(obj.hints)
     has_hints.boolean = True
+
+
+class TaskMCQSetQuestionInline(admin.TabularInline):
+    model = TaskMCQSetQuestion
+    extra = 1
+    fields = ['question_text', 'marks', 'order']
+    ordering = ['order']
+    show_change_link = True
+
+
+@admin.register(TaskMCQSet)
+class TaskMCQSetAdmin(admin.ModelAdmin):
+    list_display = ['title', 'task', 'question_count', 'total_marks', 'order', 'created_at']
+    list_filter = ['task', 'created_at']
+    search_fields = ['title', 'description', 'task__title']
+    ordering = ['task', 'order', '-created_at']
+    inlines = [TaskMCQSetQuestionInline]
+
+    def question_count(self, obj):
+        return obj.question_count
+    question_count.short_description = 'Questions'
+
+    def total_marks(self, obj):
+        return obj.total_marks
+    total_marks.short_description = 'Total Marks'
+
+
+@admin.register(TaskMCQSetQuestion)
+class TaskMCQSetQuestionAdmin(admin.ModelAdmin):
+    list_display = ['short_question', 'mcq_set', 'marks', 'get_correct_choices', 'order']
+    list_filter = ['mcq_set__task', 'mcq_set']
+    search_fields = ['question_text', 'mcq_set__title']
+    ordering = ['mcq_set', 'order']
+
+    def short_question(self, obj):
+        return obj.question_text[:50] + '...' if len(obj.question_text) > 50 else obj.question_text
+    short_question.short_description = 'Question'
+
+    def get_correct_choices(self, obj):
+        correct = []
+        if obj.choice_1_is_correct:
+            correct.append('1')
+        if obj.choice_2_is_correct:
+            correct.append('2')
+        if obj.choice_3_is_correct:
+            correct.append('3')
+        if obj.choice_4_is_correct:
+            correct.append('4')
+        return ', '.join(correct) if correct else 'None'
+    get_correct_choices.short_description = 'Correct Choices'
 
 
 @admin.register(TaskTestCase)

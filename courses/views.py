@@ -129,7 +129,7 @@ class CourseViewSet(viewsets.ModelViewSet, StandardResponseMixin):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         return self.success_response(
-            data=CourseDetailSerializer(serializer.instance).data,
+            data=CourseDetailSerializer(serializer.instance, context={'request': request}).data,
             message="Course created successfully.",
             status_code=status.HTTP_201_CREATED
         )
@@ -141,7 +141,7 @@ class CourseViewSet(viewsets.ModelViewSet, StandardResponseMixin):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return self.success_response(
-            data=CourseDetailSerializer(serializer.instance).data,
+            data=CourseDetailSerializer(serializer.instance, context={'request': request}).data,
             message="Course updated successfully."
         )
 
@@ -155,7 +155,7 @@ class CourseViewSet(viewsets.ModelViewSet, StandardResponseMixin):
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
-        serializer = self.get_serializer(instance)
+        serializer = self.get_serializer(instance, context={'request': request})
         return self.success_response(
             data=serializer.data,
             message="Course retrieved successfully."
@@ -217,9 +217,9 @@ class CourseViewSet(viewsets.ModelViewSet, StandardResponseMixin):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         if page is not None:
-            serializer = self.get_serializer(page, many=True)
+            serializer = self.get_serializer(page, many=True, context={'request': request})
             return self.get_paginated_response(serializer.data)
-        serializer = self.get_serializer(queryset, many=True)
+        serializer = self.get_serializer(queryset, many=True, context={'request': request})
         return self.success_response(
             data=serializer.data,
             message="Courses retrieved successfully."
@@ -246,7 +246,7 @@ class CourseViewSet(viewsets.ModelViewSet, StandardResponseMixin):
         course.save()
 
         return self.success_response(
-            data=EnrollmentSerializer(enrollment).data,
+            data=EnrollmentSerializer(enrollment, context={'request': request}).data,
             message="Successfully enrolled in course",
             status_code=status.HTTP_201_CREATED
         )
@@ -256,7 +256,7 @@ class CourseViewSet(viewsets.ModelViewSet, StandardResponseMixin):
         """Get all syllabi for the course"""
         course = self.get_object()
         syllabi = course.syllabi.filter(is_published=True)
-        serializer = SyllabusSerializer(syllabi, many=True)
+        serializer = SyllabusSerializer(syllabi, many=True, context={'request': request})
         return self.success_response(
             data=serializer.data,
             message="Syllabi retrieved successfully."
@@ -267,7 +267,7 @@ class CourseViewSet(viewsets.ModelViewSet, StandardResponseMixin):
         """Get all tasks for the course"""
         course = self.get_object()
         tasks = course.tasks.filter(status='active')
-        serializer = TaskSerializer(tasks, many=True)
+        serializer = TaskSerializer(tasks, many=True, context={'request': request})
         return self.success_response(
             data=serializer.data,
             message="Tasks retrieved successfully."
@@ -277,7 +277,7 @@ class CourseViewSet(viewsets.ModelViewSet, StandardResponseMixin):
     def featured(self, request):
         """Get featured courses"""
         courses = self.get_queryset().filter(is_featured=True, status='published')[:10]
-        serializer = CourseListSerializer(courses, many=True)
+        serializer = CourseListSerializer(courses, many=True, context={'request': request})
         return self.success_response(
             data=serializer.data,
             message="Featured courses retrieved successfully."
@@ -288,7 +288,7 @@ class CourseViewSet(viewsets.ModelViewSet, StandardResponseMixin):
         """Get courses the current user is enrolled in"""
         enrollments = Enrollment.objects.filter(student=request.user).select_related('course')
         courses = [enrollment.course for enrollment in enrollments]
-        serializer = CourseListSerializer(courses, many=True)
+        serializer = CourseListSerializer(courses, many=True, context={'request': request})
         return self.success_response(
             data=serializer.data,
             message="Your courses retrieved successfully."
@@ -349,7 +349,7 @@ class SyllabusViewSet(viewsets.ModelViewSet, StandardResponseMixin):
         return queryset.select_related('course').distinct()
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         return self.success_response(
@@ -361,7 +361,7 @@ class SyllabusViewSet(viewsets.ModelViewSet, StandardResponseMixin):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer = self.get_serializer(instance, data=request.data, partial=partial, context={'request': request})
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return self.success_response(
@@ -379,7 +379,7 @@ class SyllabusViewSet(viewsets.ModelViewSet, StandardResponseMixin):
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
-        serializer = self.get_serializer(instance)
+        serializer = self.get_serializer(instance, context={'request': request})
         return self.success_response(
             data=serializer.data,
             message="Syllabus retrieved successfully."
@@ -389,9 +389,9 @@ class SyllabusViewSet(viewsets.ModelViewSet, StandardResponseMixin):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         if page is not None:
-            serializer = self.get_serializer(page, many=True)
+            serializer = self.get_serializer(page, many=True, context={'request': request})
             return self.get_paginated_response(serializer.data)
-        serializer = self.get_serializer(queryset, many=True)
+        serializer = self.get_serializer(queryset, many=True, context={'request': request})
         return self.success_response(
             data=serializer.data,
             message="Syllabi retrieved successfully."
@@ -464,7 +464,7 @@ class SyllabusViewSet(viewsets.ModelViewSet, StandardResponseMixin):
             )
 
             return self.success_response(
-                data=SyllabusTopicSerializer(syllabus_topic).data,
+                data=SyllabusTopicSerializer(syllabus_topic, context={'request': request}).data,
                 message="Topic added to syllabus successfully.",
                 status_code=status.HTTP_201_CREATED
             )
@@ -523,6 +523,7 @@ class TopicViewSet(viewsets.ModelViewSet, StandardResponseMixin):
     search_fields = ['title', 'description']
     ordering_fields = ['title', 'created_at']
     ordering = ['title']
+    pagination_class = CustomPagination  # Added to support large page sizes
 
     @extend_schema(tags=['Course Topics'])
 
@@ -560,7 +561,7 @@ class TopicViewSet(viewsets.ModelViewSet, StandardResponseMixin):
         return queryset.select_related('course').distinct()
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         return self.success_response(
@@ -572,7 +573,7 @@ class TopicViewSet(viewsets.ModelViewSet, StandardResponseMixin):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer = self.get_serializer(instance, data=request.data, partial=partial, context={'request': request})
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return self.success_response(
@@ -590,7 +591,7 @@ class TopicViewSet(viewsets.ModelViewSet, StandardResponseMixin):
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
-        serializer = self.get_serializer(instance)
+        serializer = self.get_serializer(instance, context={'request': request})
         return self.success_response(
             data=serializer.data,
             message="Topic retrieved successfully."
@@ -600,9 +601,9 @@ class TopicViewSet(viewsets.ModelViewSet, StandardResponseMixin):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         if page is not None:
-            serializer = self.get_serializer(page, many=True)
+            serializer = self.get_serializer(page, many=True, context={'request': request})
             return self.get_paginated_response(serializer.data)
-        serializer = self.get_serializer(queryset, many=True)
+        serializer = self.get_serializer(queryset, many=True, context={'request': request})
         return self.success_response(
             data=serializer.data,
             message="Topics retrieved successfully."
@@ -715,11 +716,11 @@ class TaskViewSet(viewsets.ModelViewSet, StandardResponseMixin):
 
     # --- CRUD Overrides with Standard Responses ---
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         return self.success_response(
-            data=TaskSerializer(serializer.instance).data,
+            data=TaskSerializer(serializer.instance, context={'request': request}).data,
             message="Task created successfully.",
             status_code=status.HTTP_201_CREATED
         )
@@ -727,11 +728,11 @@ class TaskViewSet(viewsets.ModelViewSet, StandardResponseMixin):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer = self.get_serializer(instance, data=request.data, partial=partial, context={'request': request})
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return self.success_response(
-            data=TaskSerializer(serializer.instance).data,
+            data=TaskSerializer(serializer.instance, context={'request': request}).data,
             message="Task updated successfully."
         )
 
@@ -745,7 +746,7 @@ class TaskViewSet(viewsets.ModelViewSet, StandardResponseMixin):
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
-        serializer = self.get_serializer(instance)
+        serializer = self.get_serializer(instance, context={'request': request})
         return self.success_response(
             data=serializer.data,
             message="Task retrieved successfully."
@@ -756,9 +757,9 @@ class TaskViewSet(viewsets.ModelViewSet, StandardResponseMixin):
             queryset = self.filter_queryset(self.get_queryset())
             page = self.paginate_queryset(queryset)
             if page is not None:
-                serializer = self.get_serializer(page, many=True)
+                serializer = self.get_serializer(page, many=True, context={'request': request})
                 return self.get_paginated_response(serializer.data)
-            serializer = self.get_serializer(queryset, many=True)
+            serializer = self.get_serializer(queryset, many=True, context={'request': request})
             return self.success_response(
                 data=serializer.data,
                 message="Tasks retrieved successfully."
@@ -776,7 +777,7 @@ class TaskViewSet(viewsets.ModelViewSet, StandardResponseMixin):
         """Get all submissions for a task"""
         task = self.get_object()
         submissions = task.submissions.all()  # Assumes related_name='submissions' on TaskSubmission.task
-        serializer = TaskSubmissionSerializer(submissions, many=True)
+        serializer = TaskSubmissionSerializer(submissions, many=True, context={'request': request})
         return self.success_response(
             data=serializer.data,
             message="Submissions retrieved successfully."
@@ -960,7 +961,7 @@ class EnrollmentViewSet(viewsets.ModelViewSet, StandardResponseMixin):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer = self.get_serializer(instance, data=request.data, partial=partial, context={'request': request})
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return self.success_response(
@@ -970,7 +971,7 @@ class EnrollmentViewSet(viewsets.ModelViewSet, StandardResponseMixin):
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
-        serializer = self.get_serializer(instance)
+        serializer = self.get_serializer(instance, context={'request': request})
         return self.success_response(
             data=serializer.data,
             message="Enrollment retrieved successfully."
@@ -980,9 +981,9 @@ class EnrollmentViewSet(viewsets.ModelViewSet, StandardResponseMixin):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         if page is not None:
-            serializer = self.get_serializer(page, many=True)
+            serializer = self.get_serializer(page, many=True, context={'request': request})
             return self.get_paginated_response(serializer.data)
-        serializer = self.get_serializer(queryset, many=True)
+        serializer = self.get_serializer(queryset, many=True, context={'request': request})
         return self.success_response(
             data=serializer.data,
             message="Enrollments retrieved successfully."
@@ -1023,7 +1024,7 @@ class EnrollmentViewSet(viewsets.ModelViewSet, StandardResponseMixin):
 
         enrollment.save(update_fields=['status', 'progress_percentage', 'completed_at'])
 
-        serializer = self.get_serializer(enrollment)
+        serializer = self.get_serializer(enrollment, context={'request': request})
         return self.success_response(
             data=serializer.data,
             message="Enrollment marked as completed successfully."
@@ -1063,7 +1064,7 @@ class TaskSubmissionViewSet(viewsets.ModelViewSet, StandardResponseMixin):
         serializer.save(student=self.request.user)
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         return self.success_response(
@@ -1075,7 +1076,7 @@ class TaskSubmissionViewSet(viewsets.ModelViewSet, StandardResponseMixin):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer = self.get_serializer(instance, data=request.data, partial=partial, context={'request': request})
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return self.success_response(
@@ -1085,7 +1086,7 @@ class TaskSubmissionViewSet(viewsets.ModelViewSet, StandardResponseMixin):
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
-        serializer = self.get_serializer(instance)
+        serializer = self.get_serializer(instance, context={'request': request})
         return self.success_response(
             data=serializer.data,
             message="Submission retrieved successfully."
@@ -1095,9 +1096,9 @@ class TaskSubmissionViewSet(viewsets.ModelViewSet, StandardResponseMixin):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         if page is not None:
-            serializer = self.get_serializer(page, many=True)
+            serializer = self.get_serializer(page, many=True, context={'request': request})
             return self.get_paginated_response(serializer.data)
-        serializer = self.get_serializer(queryset, many=True)
+        serializer = self.get_serializer(queryset, many=True, context={'request': request})
         return self.success_response(
             data=serializer.data,
             message="Submissions retrieved successfully."
@@ -1125,7 +1126,7 @@ class TaskSubmissionViewSet(viewsets.ModelViewSet, StandardResponseMixin):
         submission.save()
 
         return self.success_response(
-            data=TaskSubmissionSerializer(submission).data,
+            data=TaskSubmissionSerializer(submission, context={'request': request}).data,
             message="Submission submitted successfully."
         )
 
@@ -1139,11 +1140,11 @@ class TaskSubmissionViewSet(viewsets.ModelViewSet, StandardResponseMixin):
             )
 
         submission = self.get_object()
-        serializer = TaskSubmissionGradeSerializer(submission, data=request.data, partial=True)
+        serializer = TaskSubmissionGradeSerializer(submission, data=request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save(graded_by=request.user, graded_at=timezone.now())
 
         return self.success_response(
-            data=TaskSubmissionSerializer(submission).data,
+            data=TaskSubmissionSerializer(submission, context={'request': request}).data,
             message="Submission graded successfully."
         )

@@ -9,6 +9,7 @@ from .views import (
 )
 from .views_task_content import (
     TaskDocumentViewSet, TaskVideoViewSet, TaskQuestionViewSet,
+    TaskMCQSetViewSet,
     TaskRichTextPageViewSet, TaskTextBlockViewSet,
     TaskCodeBlockViewSet, TaskVideoBlockViewSet, TaskHighlightBlockViewSet
 )
@@ -50,6 +51,7 @@ router.register(r'submissions', TaskSubmissionViewSet, basename='task-submission
 router.register('task-documents', TaskDocumentViewSet, basename='task-document')
 router.register('task-videos', TaskVideoViewSet, basename='task-video')
 router.register('task-questions', TaskQuestionViewSet, basename='task-question')
+router.register('task-mcq-sets', TaskMCQSetViewSet, basename='task-mcq-set')
 router.register('task-richtext-pages', TaskRichTextPageViewSet, basename='task-richtext-page')
 router.register('task-text-blocks', TaskTextBlockViewSet, basename='task-text-block')
 router.register('task-code-blocks', TaskCodeBlockViewSet, basename='task-code-block')
@@ -74,4 +76,3 @@ urlpatterns = [
     # /api/student/courses/<course_id>/progress/
     # /api/student/courses/<course_id>/content-progress/
 ]
-

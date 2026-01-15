@@ -247,7 +247,7 @@ class ContentSubmissionSerializer(serializers.ModelSerializer):
         model = ContentSubmission
         fields = [
             "id", "submission_id", "student", "student_name", "task", "task_title",
-            "submission_type", "question", "document", "video", "page",
+            "submission_type", "question", "document", "video", "page", "mcq_set_question",
             "mcq_selected_choice", "code_submitted", "answer_text",
             "is_correct", "score", "completed",
             "submitted_at", "updated_at"

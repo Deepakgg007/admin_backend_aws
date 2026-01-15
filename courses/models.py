@@ -511,6 +511,101 @@ class TaskTestCase(models.Model):
         return f"{test_type} Case for {self.coding_question.question.question_text[:30]}..."
 
 
+class TaskMCQSet(models.Model):
+    """MCQ Set/Assessment - A collection of related MCQ questions"""
+    mcq_set_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='mcq_sets')
+
+    title = models.CharField(max_length=255, verbose_name="MCQ Set Title", help_text="e.g., 'Java Basics - Test 1'")
+    description = models.TextField(blank=True, null=True, verbose_name="Description", help_text="Optional description for this MCQ set")
+
+    order = models.PositiveIntegerField(default=0, verbose_name="Order", help_text="Display order within task")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'task_mcq_sets'
+        ordering = ['order', 'created_at']
+        indexes = [
+            models.Index(fields=['task', 'order']),
+        ]
+
+    def __str__(self):
+        return f"{self.title} - {self.task.title}"
+
+    @property
+    def total_marks(self):
+        """Calculate total marks for all questions in this set"""
+        return sum(q.marks for q in self.mcq_questions.all())
+
+    @property
+    def question_count(self):
+        """Get total number of questions in this set"""
+        return self.mcq_questions.count()
+
+
+class TaskMCQSetQuestion(models.Model):
+    """Individual MCQ question within an MCQ Set"""
+    mcq_set = models.ForeignKey(TaskMCQSet, on_delete=models.CASCADE, related_name='mcq_questions')
+
+    question_text = models.TextField(verbose_name="Question Text")
+    marks = models.PositiveIntegerField(default=1, help_text="Marks for this question")
+
+    # Choice 1 (Required)
+    choice_1_text = models.CharField(max_length=500, verbose_name="Choice 1")
+    choice_1_is_correct = models.BooleanField(default=False, verbose_name="Choice 1 Correct")
+
+    # Choice 2 (Required)
+    choice_2_text = models.CharField(max_length=500, verbose_name="Choice 2")
+    choice_2_is_correct = models.BooleanField(default=False, verbose_name="Choice 2 Correct")
+
+    # Choice 3 (Optional)
+    choice_3_text = models.CharField(max_length=500, blank=True, null=True, verbose_name="Choice 3")
+    choice_3_is_correct = models.BooleanField(default=False, verbose_name="Choice 3 Correct")
+
+    # Choice 4 (Optional)
+    choice_4_text = models.CharField(max_length=500, blank=True, null=True, verbose_name="Choice 4")
+    choice_4_is_correct = models.BooleanField(default=False, verbose_name="Choice 4 Correct")
+
+    # Solution explanation (Required)
+    solution_explanation = models.TextField(
+        verbose_name="Solution Explanation",
+        help_text="Explanation for the correct answer"
+    )
+
+    order = models.PositiveIntegerField(default=0, verbose_name="Order", help_text="Display order within MCQ set")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'task_mcq_set_questions'
+        ordering = ['order', 'created_at']
+        indexes = [
+            models.Index(fields=['mcq_set', 'order']),
+        ]
+
+    def __str__(self):
+        return f"Q{self.order + 1}: {self.question_text[:50]}... - {self.mcq_set.title}"
+
+    def clean(self):
+        """Validate MCQ has at least 2 choices and at least 1 correct answer"""
+        choices = [self.choice_1_text, self.choice_2_text, self.choice_3_text, self.choice_4_text]
+        if sum(1 for choice in choices if choice) < 2:
+            raise ValidationError("MCQ questions must have at least two choices.")
+
+        correct_answers = [
+            self.choice_1_is_correct,
+            self.choice_2_is_correct,
+            self.choice_3_is_correct,
+            self.choice_4_is_correct
+        ]
+        if not any(correct_answers):
+            raise ValidationError("MCQ questions must have at least one correct choice.")
+
+        if not self.solution_explanation:
+            raise ValidationError("Solution explanation is required.")
+
+
 class TaskRichTextPage(models.Model):
     """Rich text content pages with mixed content blocks"""
     page_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)

@@ -16,12 +16,14 @@ from django.shortcuts import get_object_or_404
 
 from .models import (
     Task, TaskDocument, TaskVideo, TaskQuestion, TaskMCQ, TaskCoding,
+    TaskMCQSet, TaskMCQSetQuestion,
     TaskRichTextPage, TaskTextBlock, TaskCodeBlock, TaskVideoBlock, TaskHighlightBlock
 )
 from .serializers import (
     TaskDocumentSerializer, TaskVideoSerializer,
     TaskQuestionSerializer, TaskQuestionCreateSerializer,
     TaskMCQSerializer, TaskCodingSerializer,
+    TaskMCQSetSerializer, TaskMCQSetCreateSerializer, TaskMCQSetQuestionSerializer,
     TaskRichTextPageSerializer,
     TaskTextBlockSerializer, TaskCodeBlockSerializer, TaskVideoBlockSerializer, TaskHighlightBlockSerializer
 )
@@ -228,6 +230,96 @@ class TaskQuestionViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class TaskMCQSetViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing MCQ Sets
+
+    list: Get all MCQ sets for a task
+    create: Create a new MCQ set with questions
+    retrieve: Get MCQ set with all questions
+    update/partial_update: Update MCQ set and questions
+    destroy: Delete MCQ set
+    reorder: Reorder MCQ sets
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action in ['create', 'update', 'partial_update']:
+            return TaskMCQSetCreateSerializer
+        return TaskMCQSetSerializer
+
+    def get_queryset(self):
+        queryset = TaskMCQSet.objects.all()
+        task_id = self.request.query_params.get('task')
+        if task_id:
+            queryset = queryset.filter(task_id=task_id)
+        return queryset.select_related('task').prefetch_related('mcq_questions').order_by('order', 'created_at')
+
+    def create(self, request, *args, **kwargs):
+        """Create a new MCQ set with questions"""
+        print("=== MCQ Set Create Request ===")
+        print(f"Request data: {request.data}")
+
+        serializer = self.get_serializer(data=request.data)
+
+        if not serializer.is_valid():
+            print(f"Validation errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            # Return full data with questions
+            mcq_set = TaskMCQSet.objects.get(id=serializer.data['id'])
+            response_serializer = TaskMCQSetSerializer(mcq_set)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        except Exception as e:
+            print(f"Error creating MCQ set: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request, *args, **kwargs):
+        """Update an MCQ set and its questions"""
+        print("=== MCQ Set Update Request ===")
+        print(f"Request data: {request.data}")
+
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+
+        if not serializer.is_valid():
+            print(f"Validation errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            self.perform_update(serializer)
+            # Return full data with questions
+            mcq_set = TaskMCQSet.objects.get(id=instance.id)
+            response_serializer = TaskMCQSetSerializer(mcq_set)
+            return Response(response_serializer.data)
+        except Exception as e:
+            print(f"Error updating MCQ set: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['post'], url_path='reorder')
+    def reorder(self, request):
+        """Reorder MCQ sets"""
+        order_data = request.data.get('items', [])
+
+        for item in order_data:
+            try:
+                mcq_set = TaskMCQSet.objects.get(id=item['id'])
+                mcq_set.order = item['order']
+                mcq_set.save(update_fields=['order'])
+            except TaskMCQSet.DoesNotExist:
+                continue
+
+        return Response({'message': 'MCQ sets reordered successfully'}, status=status.HTTP_200_OK)
 
 
 class TaskRichTextPageViewSet(viewsets.ModelViewSet):
