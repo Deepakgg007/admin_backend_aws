@@ -1,10 +1,17 @@
 from rest_framework import serializers
 from .models import (
-    Certification, 
-    CertificationQuestion, 
-    CertificationOption, 
-    AttemptAnswer, 
-    CertificationAttempt
+    Certification,
+    CertificationQuestion,
+    CertificationOption,
+    CertificationQuestionBank,
+    AttemptAnswer,
+    AttemptAnswerBank,
+    CertificationAttempt,
+    QuestionBank,
+    QuestionBankOption,
+    QuestionBankCategory,
+    AIGenerationLog,
+    AIProviderSettings
 )
 from courses.models import Enrollment
 
@@ -90,6 +97,7 @@ class CertificationQuestionPublicSerializer(serializers.ModelSerializer):
 
 class CertificationSerializer(serializers.ModelSerializer):
     questions = CertificationQuestionSerializer(many=True)
+    bank_questions = serializers.SerializerMethodField()
     total_questions = serializers.SerializerMethodField()
     course_title = serializers.CharField(source='course.title', read_only=True)
     course_id = serializers.IntegerField(source='course.id', read_only=True)
@@ -100,12 +108,19 @@ class CertificationSerializer(serializers.ModelSerializer):
             "id", "course", "course_id", "course_title", "title", "description",
             "passing_score", "duration_minutes",
             "max_attempts", "is_active", "created_at",
-            "total_questions", "questions"
+            "total_questions", "questions", "bank_questions"
         ]
         read_only_fields = ["created_at"]
 
     def get_total_questions(self, obj):
-        return obj.questions.filter(is_active=True).count()
+        manual_count = obj.questions.filter(is_active=True).count()
+        bank_count = obj.bank_questions.filter(is_active=True).count()
+        return manual_count + bank_count
+
+    def get_bank_questions(self, obj):
+        from .serializers import CertificationQuestionBankSerializer
+        bank_questions = obj.bank_questions.filter(is_active=True).select_related('question').prefetch_related('question__options')
+        return CertificationQuestionBankSerializer(bank_questions, many=True).data
 
     def validate_questions(self, value):
         if len(value) < 1:
@@ -218,7 +233,9 @@ class CertificationPublicSerializer(serializers.ModelSerializer):
         ]
 
     def get_total_questions(self, obj):
-        return obj.questions.filter(is_active=True).count()
+        manual_count = obj.questions.filter(is_active=True).count()
+        bank_count = obj.bank_questions.filter(is_active=True).count()
+        return manual_count + bank_count
 
     def get_user_attempts(self, obj):
         request = self.context.get("request")
@@ -264,6 +281,40 @@ class AttemptAnswerSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         question = attrs["question"]
         selected = attrs["selected_options"]
+
+        if not isinstance(selected, list):
+            raise serializers.ValidationError("selected_options must be a list")
+
+        if not selected:
+            raise serializers.ValidationError("At least one option must be selected")
+
+        valid_ids = list(question.options.values_list("id", flat=True))
+
+        for opt in selected:
+            if opt not in valid_ids:
+                raise serializers.ValidationError(
+                    f"Invalid option {opt} for question {question.id}"
+                )
+
+        # Check if multiple answers for single-answer question
+        if not question.is_multiple_correct and len(selected) > 1:
+            raise serializers.ValidationError(
+                "This question allows only one answer"
+            )
+
+        return attrs
+
+
+class AttemptAnswerBankSerializer(serializers.ModelSerializer):
+    """Serializer for answering Question Bank questions in certification attempts"""
+    class Meta:
+        model = AttemptAnswerBank
+        fields = ["cert_question", "selected_options"]
+
+    def validate(self, attrs):
+        cert_question = attrs["cert_question"]
+        selected = attrs["selected_options"]
+        question = cert_question.question
 
         if not isinstance(selected, list):
             raise serializers.ValidationError("selected_options must be a list")
@@ -455,3 +506,257 @@ class CertificationAttemptSerializer(serializers.ModelSerializer):
         )
 
         return attempt
+
+
+# ====================================
+# QUESTION BANK SERIALIZERS
+# ====================================
+
+class QuestionBankOptionSerializer(serializers.ModelSerializer):
+    """Serializer for question bank options"""
+    id = serializers.IntegerField(required=False)
+
+    class Meta:
+        model = QuestionBankOption
+        fields = ["id", "text", "is_correct", "order"]
+
+
+class QuestionBankCategorySerializer(serializers.ModelSerializer):
+    """Serializer for question categories"""
+    question_count = serializers.SerializerMethodField()
+    course_title = serializers.CharField(source='course.title', read_only=True)
+
+    class Meta:
+        model = QuestionBankCategory
+        fields = ["id", "name", "description", "course", "course_title", "is_active", "question_count", "created_at", "updated_at"]
+        read_only_fields = ["created_at", "updated_at"]
+
+    def get_question_count(self, obj):
+        return obj.get_question_count()
+
+
+class QuestionBankSerializer(serializers.ModelSerializer):
+    """Serializer for question bank CRUD operations"""
+    options = QuestionBankOptionSerializer(many=True)
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    course_title = serializers.CharField(source='course.title', read_only=True)
+    created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
+    options_count = serializers.SerializerMethodField()
+    correct_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = QuestionBank
+        fields = [
+            "id", "text", "explanation", "is_multiple_correct", "difficulty",
+            "category", "category_name", "course", "course_title", "tags",
+            "source", "ai_prompt", "ai_model", "weight", "is_active",
+            "created_by", "created_by_name", "options", "options_count",
+            "correct_count", "created_at", "updated_at"
+        ]
+        read_only_fields = ["created_at", "updated_at", "created_by"]
+
+    def get_options_count(self, obj):
+        return obj.get_options_count()
+
+    def get_correct_count(self, obj):
+        return obj.get_correct_count()
+
+    def validate_options(self, options_data):
+        """Validate that options are properly configured"""
+        if len(options_data) < 2:
+            raise serializers.ValidationError("At least 2 options are required.")
+
+        correct_count = sum(1 for opt in options_data if opt.get("is_correct"))
+        if correct_count == 0:
+            raise serializers.ValidationError("At least 1 correct option is required.")
+
+        return options_data
+
+    def validate(self, data):
+        """Validate is_multiple_correct matches correct options count"""
+        options_data = data.get('options', [])
+        is_multiple = data.get('is_multiple_correct', False)
+
+        correct_count = sum(1 for opt in options_data if opt.get("is_correct"))
+
+        if not is_multiple and correct_count > 1:
+            raise serializers.ValidationError({
+                "is_multiple_correct": "Must be True when multiple options are correct."
+            })
+
+        return data
+
+    def create(self, validated_data):
+        """Create question with options"""
+        options_data = validated_data.pop("options")
+
+        # Set created_by from request context
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            validated_data['created_by'] = request.user
+
+        question = QuestionBank.objects.create(**validated_data)
+
+        for opt_data in options_data:
+            QuestionBankOption.objects.create(question=question, **opt_data)
+
+        return question
+
+    def update(self, instance, validated_data):
+        """Update question and options"""
+        options_data = validated_data.pop("options", None)
+
+        # Update question fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # Update options if provided
+        if options_data is not None:
+            # Delete existing options
+            instance.options.all().delete()
+
+            # Create new options
+            for opt_data in options_data:
+                QuestionBankOption.objects.create(question=instance, **opt_data)
+
+        return instance
+
+
+class QuestionBankListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for listing questions"""
+    category_name = serializers.CharField(source='category.name', read_only=True)
+    course_title = serializers.CharField(source='course.title', read_only=True)
+    options_count = serializers.SerializerMethodField()
+    correct_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = QuestionBank
+        fields = [
+            "id", "text", "difficulty", "category", "category_name",
+            "course", "course_title", "source", "is_active",
+            "options_count", "correct_count", "weight", "tags", "created_at"
+        ]
+
+    def get_options_count(self, obj):
+        return obj.get_options_count()
+
+    def get_correct_count(self, obj):
+        return obj.get_correct_count()
+
+
+class CertificationQuestionBankPublicSerializer(serializers.ModelSerializer):
+    """Serializer for students - hides correct answers"""
+    question_text = serializers.CharField(source='question.text', read_only=True)
+    is_multiple_correct = serializers.BooleanField(source='question.is_multiple_correct', read_only=True)
+    options = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CertificationQuestionBank
+        fields = ["id", "order", "weight", "question_text", "is_multiple_correct", "options"]
+
+    def get_options(self, obj):
+        options = obj.question.options.all()
+        return [{"id": opt.id, "text": opt.text} for opt in options]
+
+
+class CertificationQuestionBankSerializer(serializers.ModelSerializer):
+    """Serializer for admin - shows full question details including correct answers"""
+    question_text = serializers.CharField(source='question.text', read_only=True)
+    question_details = QuestionBankSerializer(source='question', read_only=True)
+
+    class Meta:
+        model = CertificationQuestionBank
+        fields = ["id", "certification", "question", "question_text", "question_details", "weight", "order", "is_active", "added_at"]
+        read_only_fields = ["added_at"]
+
+
+class AIGenerationLogSerializer(serializers.ModelSerializer):
+    """Serializer for AI generation logs"""
+    created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
+
+    class Meta:
+        model = AIGenerationLog
+        fields = [
+            "id", "prompt", "topic", "difficulty", "num_questions",
+            "model_used", "provider", "status", "response_raw",
+            "questions_created", "error_message", "created_by",
+            "created_by_name", "created_at", "completed_at"
+        ]
+        read_only_fields = ["created_at", "completed_at", "created_by"]
+
+
+class AIProviderSettingsSerializer(serializers.ModelSerializer):
+    """Serializer for AI provider settings"""
+    api_key_masked = serializers.SerializerMethodField()
+    updated_by_name = serializers.CharField(source='updated_by.get_full_name', read_only=True)
+
+    class Meta:
+        model = AIProviderSettings
+        fields = [
+            "id", "provider", "api_key", "api_key_masked", "api_endpoint",
+            "default_model", "is_active", "is_default", "max_tokens",
+            "temperature", "additional_settings", "updated_by",
+            "updated_by_name", "created_at", "updated_at"
+        ]
+        read_only_fields = ["created_at", "updated_at", "api_key_masked"]
+        extra_kwargs = {
+            'api_key': {'write_only': True}
+        }
+
+    def get_api_key_masked(self, obj):
+        """Return masked API key for display"""
+        return obj.get_masked_api_key()
+
+    def update(self, instance, validated_data):
+        """Update provider settings and set updated_by"""
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            validated_data['updated_by'] = request.user
+
+        return super().update(instance, validated_data)
+
+
+class AIProviderSettingsListSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for listing AI providers"""
+    masked_api_key = serializers.SerializerMethodField()
+    has_api_key = serializers.SerializerMethodField()
+    provider_display = serializers.CharField(source='get_provider_display', read_only=True)
+
+    class Meta:
+        model = AIProviderSettings
+        fields = [
+            "id", "provider", "provider_display", "masked_api_key",
+            "has_api_key", "default_model", "is_active", "is_default"
+        ]
+
+    def get_masked_api_key(self, obj):
+        return obj.get_masked_api_key()
+
+    def get_has_api_key(self, obj):
+        return bool(obj.api_key)
+
+
+class AIGenerateQuestionsSerializer(serializers.Serializer):
+    """Serializer for AI question generation request"""
+    topic = serializers.CharField(max_length=200, help_text="Topic for questions")
+    difficulty = serializers.ChoiceField(choices=QuestionBank.DIFFICULTY_CHOICES)
+    num_questions = serializers.IntegerField(min_value=1, max_value=20, help_text="Number of questions to generate")
+    category = serializers.PrimaryKeyRelatedField(
+        queryset=QuestionBankCategory.objects.all(),
+        required=False,
+        allow_null=True
+    )
+    course = serializers.IntegerField(required=False, allow_null=True)
+    tags = serializers.ListField(child=serializers.CharField(), required=False, default=list)
+    additional_context = serializers.CharField(required=False, allow_blank=True)
+
+
+class ImportToCertificationSerializer(serializers.Serializer):
+    """Serializer for importing questions to certification"""
+    question_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        min_length=1,
+        help_text="List of question IDs to import"
+    )
+    certification_id = serializers.IntegerField(help_text="Target certification ID")
