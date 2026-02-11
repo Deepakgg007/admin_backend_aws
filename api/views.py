@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 class APIRootView(APIView, StandardResponseMixin):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]  # SECURITY: Require authentication
 
     @extend_schema(
         summary="API Root",
@@ -384,12 +384,21 @@ def proxy_image_to_base64(request):
     """
     Proxy endpoint to convert images to base64
     This solves CORS issues when generating PDFs with external images
+    SECURITY: Requires authentication and validates URLs to prevent SSRF attacks
 
     Usage: GET /api/utils/image-to-base64/?url=<image_url>
 
     Returns:
         JSON response with base64 encoded image or error message
     """
+    # SECURITY: Check if user is authenticated
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            'success': False,
+            'error': 'Authentication required',
+            'message': 'You must be logged in to use this endpoint'
+        }, status=401)
+
     image_url = request.GET.get('url')
 
     if not image_url:
@@ -400,27 +409,120 @@ def proxy_image_to_base64(request):
             'message': 'Please provide a url parameter'
         }, status=400)
 
+    # SECURITY: Validate URL to prevent SSRF attacks
+    from urllib.parse import urlparse
+
+    try:
+        parsed_url = urlparse(image_url)
+
+        # Block private/internal IPs
+        hostname = parsed_url.hostname
+        if hostname:
+            # Block localhost and private IP ranges
+            blocked_patterns = [
+                'localhost', '127.0.0.1', '0.0.0.0',
+                '169.254.',  # Link-local
+                '10.',       # Private Class A
+                '172.16.', '172.17.', '172.18.', '172.19.', '172.20.',
+                '172.21.', '172.22.', '172.23.', '172.24.', '172.25.',
+                '172.26.', '172.27.', '172.28.', '172.29.', '172.30.',
+                '172.31.',  # Private Class B
+                '192.168.',  # Private Class C
+                '::1',       # IPv6 localhost
+            ]
+
+            # Check if hostname is an IP address (prevent bypass via IP)
+            import socket
+            try:
+                # Resolve hostname to IP to check if it's a private IP
+                ip_address = socket.gethostbyname(hostname)
+                for pattern in blocked_patterns:
+                    if hostname.startswith(pattern) or ip_address.startswith(pattern):
+                        logger.warning(f"Blocked internal URL: {image_url}")
+                        return JsonResponse({
+                            'success': False,
+                            'error': 'Invalid URL',
+                            'message': 'Access to internal resources is not allowed'
+                        }, status=400)
+            except socket.gaierror:
+                # Invalid hostname
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid URL',
+                    'message': 'Unable to resolve hostname'
+                }, status=400)
+
+        # Only allow HTTP/HTTPS protocols
+        if parsed_url.scheme not in ['http', 'https']:
+            logger.warning(f"Blocked non-HTTP URL: {image_url}")
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid URL',
+                'message': 'Only HTTP and HTTPS URLs are allowed'
+            }, status=400)
+
+    except Exception as e:
+        logger.error(f"URL validation error: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid URL',
+            'message': 'URL validation failed'
+        }, status=400)
+
     try:
         logger.info(f"📷 Fetching image from: {image_url}")
 
-        # Fetch the image from the URL
+        # Fetch the image from the URL with size limits
         response = requests.get(
             image_url,
-            timeout=15,
-            verify=True,
+            timeout=10,  # Reduced timeout
+            verify=True,  # Verify SSL certificates
             headers={
                 'User-Agent': 'Z1-Certificate-Generator/1.0'
-            }
+            },
+            stream=True  # Stream to check size before downloading
         )
         response.raise_for_status()
 
+        # SECURITY: Limit file size to prevent DoS (max 5MB)
+        max_size = 5 * 1024 * 1024  # 5MB
+        content_length = int(response.headers.get('Content-Length', 0))
+        if content_length > max_size:
+            logger.warning(f"Image too large: {content_length} bytes")
+            return JsonResponse({
+                'success': False,
+                'error': 'File too large',
+                'message': f'Image size exceeds maximum allowed size of 5MB'
+            }, status=400)
+
+        # Download content with size limit
+        content = response.content
+        if len(content) > max_size:
+            logger.warning(f"Downloaded image too large: {len(content)} bytes")
+            return JsonResponse({
+                'success': False,
+                'error': 'File too large',
+                'message': f'Image size exceeds maximum allowed size of 5MB'
+            }, status=400)
+
         # Get content type
         content_type = response.headers.get('Content-Type', 'image/png')
+
+        # SECURITY: Only allow image content types
+        allowed_types = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp', 'image/svg+xml']
+        if content_type not in allowed_types:
+            logger.warning(f"Blocked non-image content type: {content_type}")
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid content type',
+                'message': f'Only image files are allowed'
+            }, status=400)
+
         logger.info(f"  - Content type: {content_type}")
-        logger.info(f"  - Content length: {len(response.content)} bytes")
+        logger.info(f"  - Content length: {len(content)} bytes")
 
         # Convert to base64
-        base64_image = base64.b64encode(response.content).decode('utf-8')
+        base64_image = base64.b64encode(content).decode('utf-8')
         data_url = f'data:{content_type};base64,{base64_image}'
 
         logger.info(f"✅ Successfully converted image to base64, size: {len(base64_image)} chars")
@@ -437,7 +539,7 @@ def proxy_image_to_base64(request):
         return JsonResponse({
             'success': False,
             'error': 'Timeout',
-            'message': 'Image fetch timed out after 15 seconds'
+            'message': 'Image fetch timed out after 10 seconds'
         }, status=504)
 
     except requests.exceptions.RequestException as e:

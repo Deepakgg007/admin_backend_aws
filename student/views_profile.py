@@ -28,18 +28,18 @@ User = get_user_model()
 class UserProfileViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet for user profiles
-    
+
     Endpoints:
-    - GET /api/student/profile/ - List all profiles (admin only)
-    - GET /api/student/profile/me/ - Current user profile
-    - GET /api/student/profile/{user_id}/ - Specific user profile (by user_id)
-    - GET /api/student/profile/{user_id}/badges/ - User badges
-    - GET /api/student/profile/{user_id}/activity/ - User activity
-    - GET /api/student/profile/{user_id}/stats/ - User stats
+    - GET /api/student/profile/ - List all profiles (admin only) - REQUIRES AUTH
+    - GET /api/student/profile/me/ - Current user profile - REQUIRES AUTH
+    - GET /api/student/profile/{user_id}/ - Specific user profile (by user_id) - REQUIRES AUTH
+    - GET /api/student/profile/{user_id}/badges/ - User badges - REQUIRES AUTH
+    - GET /api/student/profile/{user_id}/activity/ - User activity - REQUIRES AUTH
+    - GET /api/student/profile/{user_id}/stats/ - User stats - REQUIRES AUTH
     """
     queryset = UserProfile.objects.select_related('user').all()
     serializer_class = UserProfileSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]  # SECURITY: Require authentication
     lookup_field = 'user_id'  # Look up by user_id instead of pk
     lookup_url_kwarg = 'pk'  # URL parameter name stays as 'pk' for router compatibility
     
@@ -61,7 +61,7 @@ class UserProfileViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = self.get_serializer(profile, context={'request': request})
         return Response(serializer.data)
     
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
     def badges(self, request, pk=None):
         """Get all badges earned by user"""
         profile = self.get_object()
@@ -72,7 +72,7 @@ class UserProfileViewSet(viewsets.ReadOnlyModelViewSet):
             'total_count': user_badges.count()
         })
     
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
     def activity(self, request, pk=None):
         """Get user's activity history"""
         profile = self.get_object()
@@ -86,7 +86,7 @@ class UserProfileViewSet(viewsets.ReadOnlyModelViewSet):
             'total_count': UserActivity.objects.filter(user=profile.user).count()
         })
     
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
     def stats(self, request, pk=None):
         """Get detailed statistics for user"""
         profile = self.get_object()
@@ -201,7 +201,7 @@ class UserProfileViewSet(viewsets.ReadOnlyModelViewSet):
             'course_stats': course_stats
         })
 
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
     def contributions(self, request, pk=None):
         """Get user's daily coding contributions for a specific year (GitHub-style calendar)"""
         from datetime import datetime, timedelta, date

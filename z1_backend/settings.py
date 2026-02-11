@@ -265,3 +265,16 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = config('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = config('EMAIL_HOST_USER')
+
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Z1 Solution API',
+    'DESCRIPTION': 'Advanced REST API for Z1 Solution Backend',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'SERVE_PUBLIC': False,  # SECURITY: Require authentication for API docs
+    'SERVE_PERMISSIONS': ['rest_framework.permissions.IsAuthenticated'],  # Require auth
+    'SWAGGER_UI_SETTINGS': {
+        'persistAuthorization': True,
+    },
+}
