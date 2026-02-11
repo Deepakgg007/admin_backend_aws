@@ -91,13 +91,13 @@ class UserProfileViewSet(viewsets.ReadOnlyModelViewSet):
         """Get detailed statistics for user"""
         profile = self.get_object()
         user = profile.user
-        
+
         # Get submission stats
         total_submissions = StudentChallengeSubmission.objects.filter(user=user).count()
         accepted_submissions = StudentChallengeSubmission.objects.filter(
             user=user, status='ACCEPTED'
         ).count()
-        
+
         # Get difficulty breakdown
         difficulty_stats = {
             'easy': {
@@ -113,14 +113,14 @@ class UserProfileViewSet(viewsets.ReadOnlyModelViewSet):
                 'total': Challenge.objects.filter(difficulty__iexact='hard').count()
             }
         }
-        
+
         # Recent submissions
         recent_submissions = StudentChallengeSubmission.objects.filter(
             user=user
         ).order_by('-submitted_at')[:10].values(
             'challenge__title', 'status', 'language', 'submitted_at', 'score'
         )
-        
+
         # Calculate course stats and learning hours
         enrollments_queryset = Enrollment.objects.filter(student=user).select_related('course')
         total_enrollments = enrollments_queryset.count()
@@ -145,24 +145,24 @@ class UserProfileViewSet(viewsets.ReadOnlyModelViewSet):
                     profile_obj.courses_completed += 1
                     profile_obj.save(update_fields=['courses_completed'])
                 enrollment.save(update_fields=['status', 'completed_at'])
-        
+
         # Count completed enrollments: status='completed' OR progress_percentage >= 100
         completed_enrollments = enrollments.filter(
             Q(status='completed') | Q(progress_percentage__gte=100)
         ).count()
-        
+
         # Get completed enrollments (status='completed' OR progress >= 100)
         completed_enrollments_list = enrollments.filter(
             Q(status='completed') | Q(progress_percentage__gte=100)
         )
-        
+
         # Calculate learning hours
         total_course_hours = sum(enrollment.course.duration_hours or 0 for enrollment in enrollments)
         completed_course_hours = sum(
-            enrollment.course.duration_hours or 0 
+            enrollment.course.duration_hours or 0
             for enrollment in completed_enrollments_list
         )
-        
+
         # Calculate in-progress completed hours (based on progress percentage)
         # Exclude completed courses from in-progress calculation
         inprogress_enrollments = enrollments.exclude(
@@ -172,13 +172,13 @@ class UserProfileViewSet(viewsets.ReadOnlyModelViewSet):
             (enrollment.course.duration_hours or 0) * (float(enrollment.progress_percentage or 0)) / 100
             for enrollment in inprogress_enrollments
         )
-        
+
         # Calculate overall completion percentage
         overall_completion_pct = 0
         if total_enrollments > 0:
             total_progress = sum(float(enrollment.progress_percentage or 0) for enrollment in enrollments)
             overall_completion_pct = round(total_progress / total_enrollments, 2)
-        
+
         course_stats = {
             'total_enrollments': total_enrollments,
             'completed_enrollments': completed_enrollments,
@@ -188,7 +188,7 @@ class UserProfileViewSet(viewsets.ReadOnlyModelViewSet):
             'inprogress_completed_hours': round(inprogress_completed_hours, 2),
             'hours_completed_overall': round(completed_course_hours + inprogress_completed_hours, 2)
         }
-        
+
         return Response({
             'profile': UserProfileSerializer(profile).data,
             'submissions': {
@@ -199,6 +199,85 @@ class UserProfileViewSet(viewsets.ReadOnlyModelViewSet):
             'difficulty_breakdown': difficulty_stats,
             'recent_submissions': list(recent_submissions),
             'course_stats': course_stats
+        })
+
+    @action(detail=True, methods=['get'])
+    def contributions(self, request, pk=None):
+        """Get user's daily coding contributions for a specific year (GitHub-style calendar)"""
+        from datetime import datetime, timedelta, date
+        from django.utils import timezone
+        from django.db.models import Count
+        from django.db.models.functions import TruncDate
+
+        profile = self.get_object()
+        user = profile.user
+
+        # Get year from query parameter, default to current year
+        year_param = request.query_params.get('year')
+        if year_param:
+            try:
+                year = int(year_param)
+            except (ValueError, TypeError):
+                year = timezone.now().year
+        else:
+            year = timezone.now().year
+
+        # Get date range for the specified year (Jan 1 to Dec 31)
+        start_date = date(year, 1, 1)
+        end_date = date(year, 12, 31)
+
+        # Don't show future dates - cap at today if current year
+        today = timezone.now().date()
+        if end_date > today:
+            end_date = today
+
+        # Get daily challenge submissions that were accepted
+        daily_contributions = StudentChallengeSubmission.objects.filter(
+            user=user,
+            status='ACCEPTED',
+            submitted_at__date__gte=start_date,
+            submitted_at__date__lte=end_date
+        ).annotate(
+            date=TruncDate('submitted_at')
+        ).values('date').annotate(
+            count=Count('challenge_id', distinct=True)
+        ).order_by('date')
+
+        # Get details of challenges solved on each day
+        contributions_with_details = []
+        for contribution in daily_contributions:
+            contribution_date = contribution['date']
+
+            # Get unique challenges solved on this date
+            challenges_on_day = StudentChallengeSubmission.objects.filter(
+                user=user,
+                status='ACCEPTED',
+                submitted_at__date=contribution_date
+            ).values(
+                'challenge__title',
+                'challenge__difficulty'
+            ).distinct()
+
+            details = [
+                {
+                    'title': item['challenge__title'],
+                    'difficulty': item['challenge__difficulty']
+                }
+                for item in challenges_on_day
+            ]
+
+            contributions_with_details.append({
+                'date': contribution_date.isoformat(),
+                'count': contribution['count'],
+                'details': details
+            })
+
+        return Response({
+            'contributions': contributions_with_details,
+            'start_date': start_date.isoformat(),
+            'end_date': end_date.isoformat(),
+            'year': year,
+            'total_days': (end_date - start_date).days + 1
         })
 
 

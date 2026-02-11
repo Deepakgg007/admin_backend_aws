@@ -181,9 +181,9 @@ class StudentDeleteView(APIView, StandardResponseMixin):
         from django.contrib.auth import get_user_model
         from django.db.models import F
         from api.models import College
-        
+
         User = get_user_model()
-        
+
         try:
             student = User.objects.get(id=student_id, is_staff=False, is_superuser=False)
         except User.DoesNotExist:
@@ -191,26 +191,26 @@ class StudentDeleteView(APIView, StandardResponseMixin):
                 message="Student not found.",
                 status_code=status.HTTP_404_NOT_FOUND
             )
-        
+
         if student.is_staff or student.is_superuser:
             return self.error_response(
                 message="Cannot delete staff or admin users.",
                 status_code=status.HTTP_403_FORBIDDEN
             )
-        
+
         student_name = student.get_full_name() or student.username
         student_email = student.email
-        
+
         # Decrement college's current_students count if student was approved
         if student.college and student.approval_status == 'approved':
             college = student.college
             college.current_students = F('current_students') - 1
             college.save(update_fields=['current_students'])
             college.refresh_from_db()
-        
+
         # Delete the student
         student.delete()
-        
+
         return self.success_response(
             data={
                 'deleted_student': {
@@ -220,4 +220,151 @@ class StudentDeleteView(APIView, StandardResponseMixin):
                 }
             },
             message=f"Student {student_name} deleted successfully."
+        )
+
+
+class PendingOtherCollegeStudentsView(APIView, StandardResponseMixin):
+    """
+    Get students who registered with 'Other' college (college_name is set, college is null)
+    These students need admin approval since there's no college admin to approve them
+    """
+    permission_classes = [IsSuperUserOnly]
+
+    def get(self, request):
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+
+        # Get students with 'Other' college (college is null but college_name is set)
+        # Also filter by pending approval status
+        queryset = User.objects.filter(
+            college__isnull=True,
+            college_name__isnull=False,
+            is_staff=False,
+            is_superuser=False
+        ).exclude(college_name='').select_related().order_by('-created_at')
+
+        # Filter by approval status if provided
+        status_filter = request.query_params.get('status', 'pending')
+        if status_filter:
+            queryset = queryset.filter(approval_status=status_filter)
+
+        # Get total count
+        total_count = queryset.count()
+
+        # Apply pagination manually
+        per_page = int(request.query_params.get('per_page', 20))
+        page = int(request.query_params.get('page', 1))
+        start = (page - 1) * per_page
+        end = start + per_page
+
+        students_page = queryset[start:end]
+
+        # Serialize data
+        students_data = []
+        for student in students_page:
+            students_data.append({
+                'id': student.id,
+                'email': student.email,
+                'username': student.username,
+                'first_name': student.first_name,
+                'last_name': student.last_name,
+                'full_name': student.get_full_name(),
+                'usn': student.usn,
+                'phone_number': student.phone_number,
+                'profile_picture': student.profile_picture.url if student.profile_picture else None,
+                'college_name': student.college_name,  # This is the custom college name
+                'approval_status': student.approval_status,
+                'rejection_reason': student.rejection_reason,
+                'is_verified': student.is_verified,
+                'created_at': student.created_at.isoformat() if student.created_at else None,
+                'approval_date': student.approval_date.isoformat() if student.approval_date else None,
+            })
+
+        return self.success_response(
+            data=students_data,
+            message="Other college students retrieved successfully.",
+            pagination={
+                'count': total_count,
+                'next': end < total_count,
+                'previous': page > 1,
+                'page': page,
+                'per_page': per_page
+            }
+        )
+
+
+class OtherCollegeStudentActionView(APIView, StandardResponseMixin):
+    """
+    Approve/Decline/Move to pending for students with 'Other' college
+    These students are managed by superuser since no college admin exists
+    """
+    permission_classes = [IsSuperUserOnly]
+
+    def post(self, request, student_id):
+        from django.contrib.auth import get_user_model
+        from rest_framework import serializers
+        from django.utils import timezone
+
+        User = get_user_model()
+
+        try:
+            student = User.objects.get(
+                id=student_id,
+                college__isnull=True,  # Only students with 'Other' college
+                is_staff=False,
+                is_superuser=False
+            )
+        except User.DoesNotExist:
+            return self.error_response(
+                message="Student not found or not an 'Other' college student.",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+
+        # Validate action
+        action = request.data.get('action')
+        valid_actions = ['approve', 'decline', 'pending']
+        if action not in valid_actions:
+            return self.error_response(
+                message=f"Invalid action. Must be one of: {', '.join(valid_actions)}",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+
+        current_status = student.approval_status
+
+        if action == 'approve':
+            student.approval_status = 'approved'
+            student.is_verified = True
+            student.rejection_reason = ''
+            message = f"{student.get_full_name()} approved successfully."
+
+        elif action == 'decline':
+            student.approval_status = 'rejected'
+            student.is_verified = False
+            student.rejection_reason = request.data.get('decline_reason', '')
+            message = f"{student.get_full_name()} declined."
+
+        elif action == 'pending':
+            student.approval_status = 'pending'
+            student.is_verified = False
+            student.rejection_reason = ''
+            message = f"{student.get_full_name()} moved to pending status."
+
+        # Note: We don't set approved_by for 'Other' college students
+        # since there's no college to approve them
+        student.approval_date = timezone.now()
+        student.save()
+
+        return self.success_response(
+            data={
+                'id': student.id,
+                'email': student.email,
+                'full_name': student.get_full_name(),
+                'college_name': student.college_name,
+                'approval_status': student.approval_status,
+                'rejection_reason': student.rejection_reason,
+                'is_verified': student.is_verified,
+                'approval_date': student.approval_date.isoformat() if student.approval_date else None,
+            },
+            message=message
         )

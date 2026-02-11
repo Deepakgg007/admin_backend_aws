@@ -85,9 +85,20 @@ class ConceptSerializer(serializers.ModelSerializer):
 
 class ChallengeMinimalSerializer(serializers.ModelSerializer):
     """Minimal challenge serializer for nested use"""
+    companies = serializers.SerializerMethodField()
+
     class Meta:
         model = Challenge
-        fields = ['id', 'title', 'slug', 'difficulty', 'max_score', 'category']
+        fields = ['id', 'title', 'slug', 'difficulty', 'max_score', 'category', 'companies']
+
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
+    def get_companies(self, obj):
+        """Get companies that use this challenge"""
+        from .models import Company
+        companies = Company.objects.filter(
+            id__in=ConceptChallenge.objects.filter(challenge=obj).values_list('concept__company_id', flat=True)
+        ).distinct().order_by('name')
+        return CompanySerializer(companies, many=True).data
 
 
 class ConceptChallengeSerializer(serializers.ModelSerializer):

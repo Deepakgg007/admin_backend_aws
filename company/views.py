@@ -296,7 +296,11 @@ class ConceptViewSet(viewsets.ModelViewSet):
     def challenges(self, request, slug=None):
         """Get all challenges for a specific concept"""
         concept = self.get_object()
-        challenges = concept.challenges.filter(is_active=True).order_by('order')
+        # Filter out concept challenges where the linked challenge doesn't exist
+        challenges = concept.challenges.filter(
+            is_active=True,
+            challenge__isnull=False
+        ).select_related('challenge').order_by('order')
         serializer = ConceptChallengeSerializer(challenges, many=True)
         data = serializer.data
 

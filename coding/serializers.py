@@ -3,7 +3,7 @@
 
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
-from .models import Challenge, StarterCode, TestCase
+from .models import Challenge, StarterCode, TestCase, ALGORITHM_CATEGORIES
 
 
 class StarterCodeSerializer(serializers.ModelSerializer):
@@ -170,5 +170,58 @@ class ChallengeDetailSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.IntegerField())
     def get_total_test_cases(self, obj):
         return obj.test_cases.count()
+
+
+# ==========================
+# AI Generation Serializers
+# ==========================
+
+class AICodingChallengeGenerateSerializer(serializers.Serializer):
+    """Serializer for AI coding challenge generation request"""
+    topic = serializers.CharField(
+        max_length=500,
+        help_text="Topic for the coding challenge (e.g., 'Two Sum', 'Binary Tree Traversal')"
+    )
+    category = serializers.ChoiceField(
+        choices=ALGORITHM_CATEGORIES,
+        default='implementation',
+        help_text="Algorithm category"
+    )
+    difficulty = serializers.ChoiceField(
+        choices=['EASY', 'MEDIUM', 'HARD'],
+        default='MEDIUM',
+        help_text="Difficulty level"
+    )
+    num_challenges = serializers.IntegerField(
+        default=1,
+        min_value=1,
+        max_value=5,
+        help_text="Number of challenges to generate (max 5)"
+    )
+    additional_context = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Additional context for generation"
+    )
+    check_duplicates = serializers.BooleanField(
+        default=True,
+        help_text="Whether to check for duplicate challenges"
+    )
+    force_save = serializers.BooleanField(
+        default=False,
+        help_text="Save even if duplicates are found"
+    )
+
+
+class DuplicateCheckSerializer(serializers.Serializer):
+    """Serializer for duplicate check request"""
+    title = serializers.CharField(max_length=255)
+    description = serializers.CharField()
+    test_cases = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        allow_empty=True
+    )
+    exclude_id = serializers.IntegerField(required=False, allow_null=True)
 
 

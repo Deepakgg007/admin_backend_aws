@@ -162,13 +162,19 @@ class CertificationSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
 
-        existing_ids = [q["id"] for q in questions_data if "id" in q]
-        instance.questions.exclude(id__in=existing_ids).delete()
+        # Get actual existing question IDs from database (not temporary frontend IDs)
+        actual_question_ids = set(instance.questions.values_list("id", flat=True))
+        provided_ids = [q["id"] for q in questions_data if "id" in q]
+
+        # Only delete questions that exist in DB but are not in the provided data
+        ids_to_delete = actual_question_ids - set(provided_ids)
+        instance.questions.filter(id__in=ids_to_delete).delete()
 
         for q_data in questions_data:
             options_data = q_data.pop("options", [])
 
-            if "id" in q_data:
+            # Check if this is an existing question (ID exists in DB)
+            if "id" in q_data and q_data["id"] in actual_question_ids:
                 question = CertificationQuestion.objects.get(id=q_data["id"], certification=instance)
                 for attr, value in q_data.items():
                     if attr != "id":
@@ -203,14 +209,29 @@ class CertificationSerializer(serializers.ModelSerializer):
                     )
 
             else:
+                # New question (no ID or temporary frontend ID)
+                # Remove temporary ID if present
+                q_data.pop("id", None)
                 question = CertificationQuestion.objects.create(certification=instance, **q_data)
+
                 for opt_data in options_data:
+                    # Remove temporary option IDs if present
+                    opt_data.pop("id", None)
                     CertificationOption.objects.create(question=question, **opt_data)
-                
+
                 # Validation for new questions
                 if len(options_data) < 2:
                     raise serializers.ValidationError(
                         f"Question '{question.text}' must have at least 2 options."
+                    )
+                correct_count = sum(1 for opt in options_data if opt.get("is_correct"))
+                if correct_count == 0:
+                    raise serializers.ValidationError(
+                        f"Question '{question.text}' must have at least 1 correct option."
+                    )
+                if not question.is_multiple_correct and correct_count > 1:
+                    raise serializers.ValidationError(
+                        f"Question '{question.text}' allows only 1 correct option."
                     )
 
         return instance

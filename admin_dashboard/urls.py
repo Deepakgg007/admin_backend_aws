@@ -5,7 +5,9 @@ from .views import (
     CourseCompletionReportView,
     StudentsReportView,
     StudentSubmissionStatsView,
-    StudentDeleteView
+    StudentDeleteView,
+    PendingOtherCollegeStudentsView,
+    OtherCollegeStudentActionView
 )
 
 urlpatterns = [
@@ -15,4 +17,7 @@ urlpatterns = [
     path("students-report/", StudentsReportView.as_view(), name="students-report"),
     path("students/<int:student_id>/submissions/", StudentSubmissionStatsView.as_view(), name="student-submissions"),
     path("students/<int:student_id>/delete/", StudentDeleteView.as_view(), name="delete-student"),
+    # Other college student approval endpoints
+    path("other-college-students/pending/", PendingOtherCollegeStudentsView.as_view(), name="pending-other-college-students"),
+    path("other-college-students/<int:student_id>/action/", OtherCollegeStudentActionView.as_view(), name="other-college-student-action"),
 ]

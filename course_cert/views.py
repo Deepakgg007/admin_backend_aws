@@ -165,6 +165,7 @@ class StudentCertificationViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["get"])
     def questions(self, request, pk=None):
         """Get questions for a certification (without showing correct answers)"""
+        import random
         from course_cert.serializers import CertificationQuestionBankPublicSerializer
         cert = self.get_object()
 
@@ -194,7 +195,7 @@ class StudentCertificationViewSet(viewsets.ReadOnlyModelViewSet):
         manual_serializer = CertificationQuestionPublicSerializer(manual_questions, many=True)
         bank_serializer = CertificationQuestionBankPublicSerializer(bank_questions, many=True)
 
-        # Combine and return
+        # Combine all questions
         all_questions = []
 
         # Mark question type for frontend
@@ -208,8 +209,21 @@ class StudentCertificationViewSet(viewsets.ReadOnlyModelViewSet):
             q['text'] = q.pop('question_text')
             all_questions.append(q)
 
-        # Sort by order
-        all_questions.sort(key=lambda x: x['order'])
+        # IMPORTANT: Shuffle and limit questions
+        # Get the number of questions to show from query parameter or use default (30)
+        try:
+            questions_to_show = int(request.query_params.get('limit', 30))
+        except (ValueError, TypeError):
+            questions_to_show = 30
+
+        total_available = len(all_questions)
+
+        if total_available > questions_to_show:
+            # Randomly select the specified number of questions
+            all_questions = random.sample(all_questions, questions_to_show)
+
+        # Shuffle the selected questions for randomization
+        random.shuffle(all_questions)
 
         return Response(all_questions)
 
@@ -754,6 +768,17 @@ class QuestionBankViewSet(viewsets.ModelViewSet, StandardResponseMixin):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE
             )
 
+        # Validate question count to prevent timeouts
+        if num_questions > 10:
+            return Response(
+                {
+                    'error': 'Maximum 10 questions per generation to prevent timeouts. Please generate in smaller batches.',
+                    'max_allowed': 10,
+                    'requested': num_questions
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         prompt = self._build_generation_prompt(topic, difficulty, num_questions, additional_context)
 
         log = AIGenerationLog.objects.create(
@@ -793,7 +818,7 @@ class QuestionBankViewSet(viewsets.ModelViewSet, StandardResponseMixin):
                         'temperature': temperature,
                         'max_tokens': max_tokens
                     },
-                    timeout=60
+                    timeout=300  # Increased to 5 minutes for generating multiple questions
                 )
                 response.raise_for_status()
                 result = response.json()
@@ -815,7 +840,7 @@ class QuestionBankViewSet(viewsets.ModelViewSet, StandardResponseMixin):
                             'maxOutputTokens': max_tokens
                         }
                     },
-                    timeout=60
+                    timeout=300  # Increased to 5 minutes for generating multiple questions
                 )
                 response.raise_for_status()
                 result = response.json()
@@ -847,7 +872,7 @@ class QuestionBankViewSet(viewsets.ModelViewSet, StandardResponseMixin):
                         'temperature': temperature,
                         'max_tokens': max_tokens
                     },
-                    timeout=60
+                    timeout=300  # Increased to 5 minutes for generating multiple questions
                 )
                 response.raise_for_status()
                 result = response.json()
@@ -908,6 +933,18 @@ class QuestionBankViewSet(viewsets.ModelViewSet, StandardResponseMixin):
             log.error_message = f'API request failed: {str(e)}'
             log.completed_at = timezone.now()
             log.save()
+
+            # Check if it's a rate limit error (429)
+            error_str = str(e)
+            if '429' in error_str or 'Too Many Requests' in error_str:
+                return Response(
+                    {
+                        'error': 'AI service rate limit exceeded. Please wait a few minutes and try again.',
+                        'rate_limit': True,
+                        'retry_after': 120  # Suggest waiting 2 minutes
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
 
             return Response(
                 {'error': f'Failed to connect to AI service: {str(e)}'},

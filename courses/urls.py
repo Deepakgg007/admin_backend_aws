@@ -76,3 +76,4 @@ urlpatterns = [
     # /api/student/courses/<course_id>/progress/
     # /api/student/courses/<course_id>/content-progress/
 ]
+
