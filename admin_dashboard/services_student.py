@@ -343,6 +343,23 @@ def get_student_submission_stats(user_id: int) -> dict:
     """
     from student.models import CodingChallengeSubmission, CompanyChallengeSubmission
 
+    # Get enrollments with course details
+    enrollments_qs = Enrollment.objects.filter(
+        student_id=user_id
+    ).select_related('course').order_by('-enrolled_at')
+
+    enrollments = []
+    for enrollment in enrollments_qs:
+        enrollments.append({
+            'course_id': enrollment.course.id,
+            'course_title': enrollment.course.title,
+            'enrollment_status': enrollment.status,
+            'progress_percentage': float(enrollment.progress_percentage or 0),
+            'enrolled_at': enrollment.enrolled_at.isoformat() if enrollment.enrolled_at else None,
+            'completed_at': enrollment.completed_at.isoformat() if enrollment.completed_at else None,
+            'last_accessed': enrollment.last_accessed.isoformat() if enrollment.last_accessed else None,
+        })
+
     # Get coding challenge submissions
     coding_submissions = CodingChallengeSubmission.objects.filter(user_id=user_id)
     coding_attempted = coding_submissions.values('challenge_id').distinct().count()
@@ -370,6 +387,7 @@ def get_student_submission_stats(user_id: int) -> dict:
     )
 
     return {
+        "enrollments": enrollments,
         "coding_challenges": {
             "attempted": coding_attempted,
             "solved": coding_solved,

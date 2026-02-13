@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from api.permissions import IsSuperUserOnly
 from api.utils import StandardResponseMixin
-from .services import get_dashboard_data, get_completion_report, get_students_report
+from .services import get_dashboard_data, get_completion_report, get_students_report, get_student_details
 from .services_student import get_student_dashboard, get_student_submission_stats
 
 
@@ -367,4 +367,44 @@ class OtherCollegeStudentActionView(APIView, StandardResponseMixin):
                 'approval_date': student.approval_date.isoformat() if student.approval_date else None,
             },
             message=message
+        )
+
+
+class StudentDetailView(APIView, StandardResponseMixin):
+    """
+    Get detailed information about a specific student including:
+    - Profile info
+    - Enrolled courses with progress
+    - Coding challenge submissions
+    - Certifications
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, student_id):
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+
+        try:
+            student = User.objects.get(id=student_id)
+        except User.DoesNotExist:
+            return self.error_response(
+                message="Student not found.",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+
+        # If college admin, check if student is from their college
+        if request.user.is_staff and not request.user.is_superuser:
+            if student.college_id != request.user.college_id:
+                return self.error_response(
+                    message="You don't have permission to view this student's data.",
+                    status_code=status.HTTP_403_FORBIDDEN
+                )
+
+        # Get detailed student data
+        data = get_student_details(student_id)
+
+        return self.success_response(
+            data=data,
+            message="Student details retrieved successfully."
         )

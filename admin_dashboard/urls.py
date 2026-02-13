@@ -4,6 +4,7 @@ from .views import (
     StudentDashboardView,
     CourseCompletionReportView,
     StudentsReportView,
+    StudentDetailView,
     StudentSubmissionStatsView,
     StudentDeleteView,
     PendingOtherCollegeStudentsView,
@@ -15,6 +16,7 @@ urlpatterns = [
     path("student/", StudentDashboardView.as_view(), name="student-dashboard"),
     path("completion-report/", CourseCompletionReportView.as_view(), name="completion-report"),
     path("students-report/", StudentsReportView.as_view(), name="students-report"),
+    path("students/<int:student_id>/details/", StudentDetailView.as_view(), name="student-details"),
     path("students/<int:student_id>/submissions/", StudentSubmissionStatsView.as_view(), name="student-submissions"),
     path("students/<int:student_id>/delete/", StudentDeleteView.as_view(), name="delete-student"),
     # Other college student approval endpoints

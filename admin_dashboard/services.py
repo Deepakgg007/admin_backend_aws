@@ -413,7 +413,137 @@ def get_students_report(college_id=None):
             'courses_completed': completed_courses,
             'completion_percentage': completion_percentage,
         }
-        
+
         students_data.append(student_data)
-    
+
     return students_data
+
+
+def get_student_details(student_id):
+    """
+    Get detailed information about a specific student including:
+    - Profile info
+    - Enrolled courses with progress
+    - Coding challenge submissions
+    - Certifications
+    """
+    from django.contrib.auth import get_user_model
+    from student.user_profile_models import UserProfile
+    from student.models import StudentChallengeSubmission
+    from course_cert.models import CertificationAttempt
+
+    User = get_user_model()
+
+    try:
+        student = User.objects.get(id=student_id)
+    except User.DoesNotExist:
+        return None
+
+    # Get user profile if exists
+    try:
+        profile = UserProfile.objects.get(user=student)
+        profile_data = {
+            'total_points': profile.total_points,
+            'challenges_solved': profile.challenges_solved,
+            'current_streak': profile.current_streak,
+            'longest_streak': profile.longest_streak,
+            'rank': profile.rank,
+        }
+    except UserProfile.DoesNotExist:
+        profile_data = {
+            'total_points': 0,
+            'challenges_solved': 0,
+            'current_streak': 0,
+            'longest_streak': 0,
+            'rank': 'Beginner',
+        }
+
+    # Get enrolled courses
+    enrollments = Enrollment.objects.filter(
+        student=student
+    ).select_related('course').order_by('-enrolled_at')
+
+    courses_data = []
+    for enrollment in enrollments:
+        course = enrollment.course
+        courses_data.append({
+            'id': course.id,
+            'title': course.title,
+            'code': course.code,
+            'description': course.description,
+            'thumbnail': course.thumbnail.url if course.thumbnail else None,
+            'status': enrollment.status,
+            'progress_percentage': float(enrollment.progress_percentage or 0),
+            'enrolled_at': enrollment.enrolled_at.isoformat() if enrollment.enrolled_at else None,
+            'completed_at': enrollment.completed_at.isoformat() if enrollment.completed_at else None,
+            'last_accessed': enrollment.last_accessed.isoformat() if enrollment.last_accessed else None,
+        })
+
+    # Get coding challenge submissions
+    challenge_submissions = StudentChallengeSubmission.objects.filter(
+        user=student
+    ).select_related('challenge').order_by('-submitted_at')
+
+    coding_challenges = []
+    for submission in challenge_submissions:
+        challenge = submission.challenge
+        coding_challenges.append({
+            'id': challenge.id,
+            'title': challenge.title,
+            'difficulty': challenge.difficulty,
+            'category': challenge.category,
+            'status': submission.status,
+            'score': submission.score,
+            'max_score': submission.max_score or challenge.max_score,
+            'submitted_at': submission.submitted_at.isoformat() if submission.submitted_at else None,
+            'is_best_submission': submission.is_best_submission,
+        })
+
+    # Get certifications
+    cert_attempts = CertificationAttempt.objects.filter(
+        user=student
+    ).select_related('certification').order_by('-completed_at')
+
+    certifications = []
+    for attempt in cert_attempts:
+        certifications.append({
+            'id': attempt.certification.id,
+            'title': attempt.certification.title,
+            'score': attempt.score,
+            'passed': attempt.passed,
+            'completed_at': attempt.completed_at.isoformat() if attempt.completed_at else None,
+        })
+
+    # Build response
+    return {
+        'id': student.id,
+        'name': f"{student.first_name} {student.last_name}".strip() or student.username,
+        'email': student.email,
+        'username': student.username,
+        'phone_number': student.phone_number,
+        'usn': student.usn,
+        'profile_pic': student.profile_picture.url if student.profile_picture else None,
+        'college': {
+            'id': student.college.id if student.college else None,
+            'name': student.college.name if student.college else student.college_name or 'N/A',
+        } if student.college or student.college_name else None,
+        'status': student.approval_status or 'active',
+        'is_verified': student.is_verified,
+        'created_at': student.created_at.isoformat() if student.created_at else None,
+        'last_login': student.last_login.isoformat() if student.last_login else None,
+        # Profile stats
+        'profile': profile_data,
+        # Courses
+        'courses': courses_data,
+        'courses_count': len(courses_data),
+        'courses_completed': sum(1 for c in courses_data if c['status'] == 'completed'),
+        'courses_in_progress': sum(1 for c in courses_data if c['status'] == 'in_progress'),
+        # Coding challenges
+        'coding_challenges': coding_challenges,
+        'coding_challenges_count': len(coding_challenges),
+        'challenges_solved': profile_data['challenges_solved'],
+        # Certifications
+        'certifications': certifications,
+        'certifications_count': len(certifications),
+        'certifications_passed': sum(1 for c in certifications if c['passed']),
+    }
