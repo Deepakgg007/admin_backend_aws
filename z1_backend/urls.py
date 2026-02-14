@@ -14,6 +14,7 @@ urlpatterns = [
     path("api/courses/", include("courses.urls")),  # Courses app routes
     path("api/company/", include("company.urls")),  # Company challenges and jobs routes
     path("api/admin/dashboard/", include("admin_dashboard.urls")),  # Admin dashboard routes
+    path("api/proctoring/", include("proctoring.urls")),  # Proctoring routes
 ]
 
 

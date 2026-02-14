@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proctoring Test - Z1 Solution</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            max-width: 900px;
+            width: 100%;
+            padding: 30px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .test-section h2 {
+            color: #444;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        #status {
+            padding: 15px;
+            background: #e9ecef;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        #status h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+
+        #status .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        #status .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .camera-preview {
+            width: 320px;
+            height: 240px;
+            background: #000;
+            border-radius: 8px;
+            margin: 20px auto;
+            overflow: hidden;
+        }
+
+        #camera-preview video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .log-container {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            padding: 3px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .log-entry.info {
+            color: #4fc3f7;
+        }
+
+        .log-entry.error {
+            color: #f44336;
+            background: rgba(244, 67, 54, 0.1);
+        }
+
+        .log-entry.success {
+            color: #00a86b;
+        }
+
+        .violation {
+            background: #fee;
+            border-left: 4px solid #dc3545;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .violation.high {
+            background: #f8d7da;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 Z1 Proctoring Test Page</h1>
+        <p class="subtitle">Test the video proctoring system directly from your browser</p>
+
+        <!-- Configuration -->
+        <div class="test-section">
+            <h2>⚙️ Configuration</h2>
+            <div class="input-group">
+                <label>Backend URL:</label>
+                <input type="text" id="backendUrl" value="http://localhost:8000/api/proctoring" placeholder="http://localhost:8000/api/proctoring">
+            </div>
+            <div class="input-group">
+                <label>Test Task ID (leave empty for test mode):</label>
+                <input type="text" id="taskId" placeholder="Enter a Task/Certificate ID">
+            </div>
+            <div class="input-group">
+                <label>
+                    <input type="checkbox" id="enableFaceDetection" checked> Face Detection
+                </label>
+                <label>
+                    <input type="checkbox" id="enableGazeDetection" checked> Gaze Detection
+                </label>
+                <label>
+                    <input type="checkbox" id="enableObjectDetection"> Object Detection (requires PyTorch)
+                </label>
+            </div>
+        </div>
+
+        <!-- Status Display -->
+        <div id="status" class="hidden">
+            <h3>📊 Proctoring Status</h3>
+            <div class="status-item"><span>Session:</span> <strong id="sessionStatus">Not Started</strong></div>
+            <div class="status-item"><span>Camera:</span> <strong id="cameraStatus">Inactive</strong></div>
+            <div class="status-item"><span>Frames Captured:</span> <strong id="framesCaptured">0</strong></div>
+            <div class="status-item"><span>Violations:</span> <strong id="violationsCount">0</strong></div>
+        </div>
+
+        <!-- Camera Preview -->
+        <div class="camera-preview hidden" id="cameraPreview">
+            <video id="videoElement" autoplay playsinline muted></video>
+        </div>
+
+        <!-- Actions -->
+        <div class="test-section">
+            <h2>🚀 Actions</h2>
+            <button id="btnStartSession">▶️ Start Proctoring Session</button>
+            <button id="btnCaptureFrame" disabled>📸 Capture & Analyze Frame</button>
+            <button id="btnEndSession" disabled>⏸️ End Session</button>
+            <button id="btnGetStatus" disabled class="btn-secondary">📊 Get Status</button>
+            <button id="btnGetRisk" disabled class="btn-secondary">📈 Get Risk Assessment</button>
+        </div>
+
+        <!-- Violations Display -->
+        <div id="violations" class="hidden"></div>
+
+        <!-- Log -->
+        <div class="log-container" id="log"></div>
+    </div>
+
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <script>
+        // State
+        let sessionId = null;
+        let videoStream = null;
+        let proctoringConfig = {};
+        let frameCount = 0;
+        let violations = [];
+
+        // DOM Elements
+        const logContainer = document.getElementById('log');
+        const cameraPreview = document.getElementById('cameraPreview');
+        const videoElement = document.getElementById('videoElement');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Logging
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            console.log(`[${type.toUpperCase()}]`, message);
+        }
+
+        // Update Status Display
+        function updateStatus() {
+            document.getElementById('sessionStatus').textContent = sessionId ? 'Active' : 'Not Started';
+            document.getElementById('cameraStatus').textContent = videoStream ? 'Active' : 'Inactive';
+            document.getElementById('framesCaptured').textContent = frameCount;
+            document.getElementById('violationsCount').textContent = violations.length;
+
+            const statusDiv = document.getElementById('status');
+            statusDiv.classList.remove('hidden');
+        }
+
+        // Show Violation
+        function showViolation(violation) {
+            const violationsDiv = document.getElementById('violations');
+            const violationDiv = document.createElement('div');
+            violationDiv.className = `violation ${violation.severity}`;
+
+            const typeMap = {
+                'face_not_detected': '🚫 Face Not Detected',
+                'multiple_faces_detected': '👥 Multiple Faces',
+                'prolonged_look_away': '👀️ Looking Away',
+                'suspicious_gaze_pattern': '👀️ Suspicious Gaze',
+                'suspicious_object_detected': '📱 Object Detected',
+                'face_mismatch': '👤 Face Mismatch'
+            };
+
+            violationDiv.innerHTML = `
+                <strong>${typeMap[violation.type] || violation.type}</strong><br>
+                Severity: ${violation.severity}<br>
+                Confidence: ${(violation.confidence * 100).toFixed(1)}%<br>
+                <small>${new Date(violation.timestamp).toLocaleTimeString()}</small>
+            `;
+
+            violationsDiv.appendChild(violationDiv);
+            violationsDiv.classList.remove('hidden');
+
+            violations.push(violation);
+            updateStatus();
+        }
+
+        // Capture Frame from Video
+        function captureFrame() {
+            if (!videoStream || !videoElement.videoWidth) {
+                log('No active video stream', 'error');
+                return null;
+            }
+
+            canvas.width = 640;
+            canvas.height = 480;
+            ctx.drawImage(videoElement, 0, 0, 640, 480);
+
+            frameCount++;
+            updateStatus();
+
+            return canvas.toDataURL('image/jpeg', 0.7);
+        }
+
+        // Start Camera
+        async function startCamera() {
+            try {
+                log('Requesting camera access...');
+                videoStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+                    audio: false
+                });
+
+                videoElement.srcObject = videoStream;
+                await videoElement.play();
+
+                cameraPreview.classList.remove('hidden');
+                log('Camera started successfully', 'success');
+                updateStatus();
+
+                document.getElementById('btnCaptureFrame').disabled = false;
+            } catch (error) {
+                log(`Camera error: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        // Start Proctoring Session
+        async function startSession() {
+            try {
+                const backendUrl = document.getElementById('backendUrl').value;
+                const taskId = document.getElementById('taskId').value;
+
+                if (!taskId) {
+                    log('Please enter a Task ID (or use test mode)', 'error');
+                    alert('Please enter a Task ID from your Z1 Solution backend');
+                    return;
+                }
+
+                log('Starting proctoring session...');
+
+                // Capture reference frame
+                const referenceFrame = captureFrame();
+
+                // Start session
+                const response = await fetch(`${backendUrl}/sessions/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        task_id: taskId,
+                        reference_frame: referenceFrame
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                sessionId = data.session_id;
+
+                log(`Session started: ${sessionId}`, 'success');
+                updateStatus();
+
+                // Enable/disable buttons
+                document.getElementById('btnStartSession').disabled = true;
+                document.getElementById('btnEndSession').disabled = false;
+                document.getElementById('btnGetStatus').disabled = false;
+                document.getElementById('btnGetRisk').disabled = false;
+
+            } catch (error) {
+                log(`Start session error: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        // Capture and Analyze Frame
+        async function captureAndAnalyzeFrame() {
+            if (!sessionId) {
+                log('Please start a session first', 'error');
+                return;
+            }
+
+            try {
+                const frameData = captureFrame();
+                if (!frameData) {
+                    log('Failed to capture frame', 'error');
+                    return;
+                }
+
+                const backendUrl = document.getElementById('backendUrl').value;
+
+                log('Analyzing frame...');
+
+                const response = await fetch(`${backendUrl}/analyze-frame/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        frame_data: frameData,
+                        frame_number: frameCount,
+                        timestamp: Date.now() / 1000
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                log(`Frame analyzed: ${result.faces_detected} face(s) detected`, 'info');
+
+                if (result.violation_detected) {
+                    showViolation({
+                        type: result.violation_type,
+                        severity: result.severity,
+                        timestamp: new Date().toISOString(),
+                        confidence: result.confidence
+                    });
+                }
+
+            } catch (error) {
+                log(`Frame analysis error: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        // End Session
+        async function endSession() {
+            if (!sessionId) {
+                log('No active session to end', 'error');
+                return;
+            }
+
+            try {
+                log('Ending proctoring session...');
+
+                const backendUrl = document.getElementById('backendUrl').value;
+
+                const response = await fetch(`${backendUrl}/sessions/${sessionId}/end/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                log(`Session ended. Risk Score: ${data.risk_score || 'N/A'}`, 'success');
+
+                alert(`Session Summary:\nRisk Score: ${data.summary?.risk_score || 0}\nTotal Violations: ${data.summary?.violation_summary?.total || 0}`);
+
+                // Reset state
+                sessionId = null;
+                updateStatus();
+
+                document.getElementById('btnStartSession').disabled = false;
+                document.getElementById('btnEndSession').disabled = true;
+                document.getElementById('btnCaptureFrame').disabled = true;
+                document.getElementById('btnGetStatus').disabled = true;
+                document.getElementById('btnGetRisk').disabled = true;
+
+                if (videoStream) {
+                    videoStream.getTracks().forEach(track => track.stop());
+                    videoStream = null;
+                }
+
+            } catch (error) {
+                log(`End session error: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        // Get Status
+        async function getStatus() {
+            if (!sessionId) {
+                log('No active session', 'error');
+                return;
+            }
+
+            try {
+                const backendUrl = document.getElementById('backendUrl').value;
+
+                const response = await fetch(`${backendUrl}/sessions/${sessionId}/status/`);
+                const data = await response.json();
+
+                log(`Status retrieved: ${JSON.stringify(data, null, 2)}`, 'info');
+
+            } catch (error) {
+                log(`Get status error: ${error.message}`, 'error');
+            }
+        }
+
+        // Get Risk Assessment
+        async function getRiskAssessment() {
+            if (!sessionId) {
+                log('No active session', 'error');
+                return;
+            }
+
+            try {
+                const backendUrl = document.getElementById('backendUrl').value;
+
+                const response = await fetch(`${backendUrl}/risk-assessment/${sessionId}/`);
+                const data = await response.json();
+
+                log(`Risk Assessment: Level=${data.risk_level}, Score=${data.risk_score}`, 'info');
+
+                alert(`Risk Assessment:\nLevel: ${data.risk_level}\nScore: ${data.risk_score}\nRecommendation: ${data.recommendation}`);
+
+            } catch (error) {
+                log(`Get risk assessment error: ${error.message}`, 'error');
+            }
+        }
+
+        // Event Listeners
+        document.getElementById('btnStartSession').addEventListener('click', () => {
+            startCamera();
+            setTimeout(startSession, 1000);
+        });
+
+        document.getElementById('btnCaptureFrame').addEventListener('click', captureAndAnalyzeFrame);
+        document.getElementById('btnEndSession').addEventListener('click', endSession);
+        document.getElementById('btnGetStatus').addEventListener('click', getStatus);
+        document.getElementById('btnGetRisk').addEventListener('click', getRiskAssessment);
+
+        // Auto-start camera on page load
+        window.addEventListener('load', () => {
+            log('Proctoring Test Page Loaded', 'info');
+            log('Django server should be running on: http://localhost:8000', 'info');
+        });
+    </script>
+</body>
+</html>
